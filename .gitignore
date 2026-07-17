@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Qdrant embedded veritabanı (ingest ile yeniden üretilir)
+qdrant_db/
+
+# Web arayüzünden yüklenen geçici görseller
+yuklemeler/
+
+# HuggingFace model önbelleği (yerelde tutulursa)
+.cache/
+veriler

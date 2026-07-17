@@ -1,0 +1,18 @@
+# VRAG bağımlılıkları (Python 3.12+)
+#
+# GPU (CUDA) kullanımı için torch'u CUDA index'inden kurun, örn:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu130
+# Bu ortamda torch 2.12 + CUDA zaten kurulu; aşağıdaki alt sınır taşınabilirlik içindir.
+# transformers>=4.49 hem DINOv2 hem Qwen2.5-VL (VLM doğrulama) için gerekir.
+torch>=2.2
+transformers>=4.49
+qdrant-client>=1.10
+pillow>=10.0
+numpy>=1.26
+
+# VLM doğrulama varsayılan olarak 4-bit çalışır (8 GB VRAM için) -> bitsandbytes gerekir.
+# >12 GB GPU'da config.VLM_4BIT=False yapıp bf16 kullanabilirsiniz (bitsandbytes gerekmez).
+bitsandbytes>=0.43
+
+# Web arayüzü (app.py)
+flask>=3.0

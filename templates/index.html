@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hava Aracı Tanıma Sistemi</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="ust">
+    <h1>🛩️ Hava Aracı Tanıma Sistemi</h1>
+    <p class="alt">Görsel RAG hattı · DINOv2 → Qdrant → Qwen2.5-VL</p>
+  </header>
+
+  <main>
+    <!-- Yükleme -->
+    <section class="karti yukle-karti">
+      <form id="form">
+        <label id="birak" class="birak-alani">
+          <input type="file" id="dosya" name="gorsel" accept="image/*" hidden>
+          <div id="onizleme-bos" class="birak-ici">
+            <span class="ikon">📤</span>
+            <p>Uçak fotoğrafını buraya sürükle ya da <b>tıklayıp seç</b></p>
+            <small>JPG / PNG</small>
+          </div>
+          <img id="onizleme" class="onizleme" alt="önizleme" hidden>
+        </label>
+        <button id="tani-btn" type="submit" disabled>Tanı</button>
+      </form>
+    </section>
+
+    <!-- Yükleniyor -->
+    <section id="yukleniyor" class="karti yukleniyor" hidden>
+      <div class="spinner"></div>
+      <p>Analiz ediliyor… <span class="alt">retrieval → VLM karşılaştırması</span></p>
+    </section>
+
+    <!-- Hata -->
+    <p id="hata" class="hata" hidden></p>
+
+    <!-- Sonuç -->
+    <section id="sonuc" hidden>
+      <div class="karti karar-karti">
+        <div class="karar-gorsel">
+          <img id="sonuc-gorsel" alt="sorgu görseli">
+          <span class="rozet">sorgu</span>
+        </div>
+        <div class="karar-metin">
+          <span class="etiket">TAHMİN</span>
+          <h2 id="secilen-model">—</h2>
+          <div class="guven">
+            <div class="guven-bar"><div id="guven-dolu"></div></div>
+            <span id="guven-yuzde" class="guven-yuzde">—</span>
+          </div>
+          <p class="etiket ince">Açıklama <span class="alt">· seçim: Qwen2.5-VL</span></p>
+          <p id="gerekce" class="gerekce"></p>
+        </div>
+      </div>
+
+      <h3 class="adaylar-baslik">En benzer adaylar <span class="alt">(retrieval, model bazında)</span></h3>
+      <div id="adaylar" class="adaylar-grid"></div>
+    </section>
+  </main>
+
+  <footer class="alt-bilgi">
+    <p><b>Veritabanı ({{ modeller|length }} model):</b> {{ modeller|join(' · ') }}</p>
+    <p class="alt">Sistem yalnızca bu modeller arasından seçer.</p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
