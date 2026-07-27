@@ -1,0 +1,13 @@
+{
+  "model": "Bayraktar Akıncı",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Çift turboprop motor, V-kuyruk, geniş kanat açıklığı; MALE SİHA",
+  "ulke": "Türkiye",
+  "uretici": "Baykar",
+  "rol": "Taarruz (HALE)",
+  "alternatif_adlar": [
+    "Akıncı"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

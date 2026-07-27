@@ -1,0 +1,13 @@
+{
+  "model": "V-22 Osprey",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "Tiltrotor (döner motor); kanat uçlarında iki büyük pervane, VTOL",
+  "ulke": "ABD",
+  "uretici": "Bell/Boeing",
+  "rol": "Tiltrotor Nakliye",
+  "alternatif_adlar": [
+    "Osprey"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

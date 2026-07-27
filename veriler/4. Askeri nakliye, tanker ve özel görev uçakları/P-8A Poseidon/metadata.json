@@ -1,0 +1,13 @@
+{
+  "model": "P-8A Poseidon",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "737 tabanlı deniz karakol uçağı, çift turbofan, kanat ucunda dikey kanatçık",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Deniz Karakol/ASW",
+  "alternatif_adlar": [
+    "Poseidon"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

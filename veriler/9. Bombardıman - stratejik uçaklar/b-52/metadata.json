@@ -1,0 +1,13 @@
+{
+  "model": "B-52 Stratofortress",
+  "kategori": "Bombardıman Uçağı",
+  "ayirt_edici_ozellikler": "Sekiz motor (dörtlü ikiz kümeler), uzun ok kanat, yüksek dikey kuyruk",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Stratejik Bombardıman",
+  "alternatif_adlar": [
+    "BUFF"
+  ],
+  "motor_sayisi": 8,
+  "silahli": true
+}

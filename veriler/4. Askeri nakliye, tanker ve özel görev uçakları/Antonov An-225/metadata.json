@@ -1,0 +1,13 @@
+{
+  "model": "Antonov An-225 Mriya",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "Altı jet motorlu; çift dikey kuyruk; en büyük kargo uçağı",
+  "ulke": "Ukrayna",
+  "uretici": "Antonov",
+  "rol": "Ağır Nakliye",
+  "alternatif_adlar": [
+    "Mriya"
+  ],
+  "motor_sayisi": 6,
+  "silahli": false
+}

@@ -1,0 +1,13 @@
+{
+  "model": "F-22 Raptor",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Çift motorlu 5. nesil gizli avcı; açılı gövde, ikiz eğik dikey kuyruk",
+  "ulke": "ABD",
+  "uretici": "Lockheed Martin",
+  "rol": "Avcı/Stealth (5. nesil)",
+  "alternatif_adlar": [
+    "Raptor"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

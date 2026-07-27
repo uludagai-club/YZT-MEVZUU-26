@@ -1,0 +1,13 @@
+{
+  "model": "Tusaş Hürjet",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Tek motorlu jet eğitim/hafif taarruz; tandem kokpit, keskin hatlar",
+  "ulke": "Türkiye",
+  "uretici": "TUSAŞ",
+  "rol": "Eğitim/Hafif Taarruz",
+  "alternatif_adlar": [
+    "Hürjet"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

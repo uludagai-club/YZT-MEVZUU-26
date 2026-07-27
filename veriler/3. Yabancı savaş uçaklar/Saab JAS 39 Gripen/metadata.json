@@ -1,0 +1,13 @@
+{
+  "model": "Saab JAS 39 Gripen",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Tek motor, delta kanat + canard, tek dikey kuyruk",
+  "ulke": "İsveç",
+  "uretici": "Saab",
+  "rol": "Çok Rollü Avcı",
+  "alternatif_adlar": [
+    "Gripen"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

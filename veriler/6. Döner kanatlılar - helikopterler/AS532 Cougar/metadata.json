@@ -1,0 +1,14 @@
+{
+  "model": "AS532 Cougar",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "Orta sınıf çok maksatlı, dört palli ana rotor, yuvarlak gövde",
+  "ulke": "Fransa/Avrupa",
+  "uretici": "Airbus Helicopters",
+  "rol": "Nakliye Helikopteri",
+  "alternatif_adlar": [
+    "Cougar",
+    "Super Puma"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

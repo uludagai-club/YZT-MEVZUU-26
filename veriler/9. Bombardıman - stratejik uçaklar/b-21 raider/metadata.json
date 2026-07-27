@@ -1,0 +1,13 @@
+{
+  "model": "B-21 Raider",
+  "kategori": "Bombardıman Uçağı",
+  "ayirt_edici_ozellikler": "Stealth uçan kanat, B-2'ye benzer fakat daha küçük",
+  "ulke": "ABD",
+  "uretici": "Northrop Grumman",
+  "rol": "Stratejik Bombardıman/Stealth",
+  "alternatif_adlar": [
+    "Raider"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

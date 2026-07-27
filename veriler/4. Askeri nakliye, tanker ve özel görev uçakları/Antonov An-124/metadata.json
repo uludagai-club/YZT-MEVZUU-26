@@ -1,0 +1,13 @@
+{
+  "model": "Antonov An-124",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "Dört jet motorlu ağır stratejik nakliye; yüksek kanat, burun rampası",
+  "ulke": "Ukrayna",
+  "uretici": "Antonov",
+  "rol": "Stratejik Nakliye",
+  "alternatif_adlar": [
+    "Ruslan"
+  ],
+  "motor_sayisi": 4,
+  "silahli": false
+}

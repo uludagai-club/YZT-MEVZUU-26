@@ -1,0 +1,13 @@
+{
+  "model": "T625 Gökbey",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "Çok amaçlı helikopter; tek ana rotor, kısa gövde",
+  "ulke": "Türkiye",
+  "uretici": "TUSAŞ",
+  "rol": "Çok Amaçlı Helikopter",
+  "alternatif_adlar": [
+    "Gökbey"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

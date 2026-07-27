@@ -1,0 +1,13 @@
+{
+  "model": "F-4E Phantom II",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Çift motor, çift kişilik, aşağı kırık yatay kuyruk",
+  "ulke": "ABD",
+  "uretici": "McDonnell Douglas",
+  "rol": "Avcı-Bombardıman",
+  "alternatif_adlar": [
+    "Phantom"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

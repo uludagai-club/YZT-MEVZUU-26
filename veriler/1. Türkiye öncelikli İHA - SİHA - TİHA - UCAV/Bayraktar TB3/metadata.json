@@ -1,0 +1,13 @@
+{
+  "model": "Bayraktar TB3",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "TB2 benzeri, katlanır kanat, gemiden kalkış kabiliyeti",
+  "ulke": "Türkiye",
+  "uretici": "Baykar",
+  "rol": "Keşif/Taarruz (gemi)",
+  "alternatif_adlar": [
+    "TB3"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

@@ -1,0 +1,14 @@
+{
+  "model": "Wing Loong II",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Wing Loong I'in büyüğü, MALE SİHA, V kuyruk, itici pervane",
+  "ulke": "Çin",
+  "uretici": "AVIC (Chengdu)",
+  "rol": "Keşif/Taarruz",
+  "alternatif_adlar": [
+    "Pterodactyl II",
+    "GJ-2"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

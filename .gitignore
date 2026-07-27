@@ -1,16 +1,14 @@
+# Qdrant embedded indeksi (ingest ile üretilir)
+qdrant_db/
+
+# Web arayüzünden yüklenen geçici sorgu görselleri
+yuklemeler/
+
 # Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-*.egg-info/
 
-# Qdrant embedded veritabanı (ingest ile yeniden üretilir)
-qdrant_db/
-
-# Web arayüzünden yüklenen geçici görseller
-yuklemeler/
-
-# HuggingFace model önbelleği (yerelde tutulursa)
+# HF model önbelleği (varsa yerelde)
 .cache/
-veriler

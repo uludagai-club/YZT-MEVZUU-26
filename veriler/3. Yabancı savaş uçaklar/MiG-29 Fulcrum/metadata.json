@@ -1,0 +1,13 @@
+{
+  "model": "MiG-29 Fulcrum",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Çift motor, ikiz dikey kuyruk, ayrık hava alıkları, kavisli kanat kökü",
+  "ulke": "Rusya",
+  "uretici": "Mikoyan (MiG)",
+  "rol": "Avcı",
+  "alternatif_adlar": [
+    "Fulcrum"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

@@ -1,0 +1,14 @@
+{
+  "model": "F-35A Lightning II",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Tek motor, stealth, kalın gövde, içe eğik ikiz dikey kuyruk",
+  "ulke": "ABD",
+  "uretici": "Lockheed Martin",
+  "rol": "Avcı/Stealth (5. nesil)",
+  "alternatif_adlar": [
+    "Lightning II",
+    "JSF"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

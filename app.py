@@ -1,52 +1,48 @@
-"""VRAG web arayüzü — Flask.
+"""VRAG web arayüzü — Flask (tek encoder, retrieval-only).
 
-Fotoğraf yükle → retrieval (DINOv2 + Qdrant) → VLM doğrulama (Qwen2.5-VL) → sonuç.
-Modeller sunucu başlarken bir kez yüklenir ve sıcak tutulur (istekler arasında
-yeniden yüklenmez). 8 GB VRAM'de DINOv2 + 4-bit Qwen birlikte sığar.
+Fotoğraf yükle → en benzer hava aracı modeli (retrieval top-1) + adaylar + güven.
+Benchmark (leave-one-out) doğruluğu ölçer. Nihai tahmin = retrieval top-1.
 
 Çalıştırma:  python app.py   →  http://127.0.0.1:5000
 """
 from __future__ import annotations
 
+import json
 import threading
+import time
 from pathlib import Path
 from urllib.parse import quote
 
 from flask import Flask, abort, jsonify, render_template, request, send_file
 
-from vrag import config
-from vrag.arama import ara
-from vrag.dogrulama import aday_dogrula, vlm_dogrulayici_al
-from vrag.gomleme import gomleme_modeli_al
-from vrag.vektor_deposu import VektorDeposu
+from vrag import config, degerlendirme, indeksleme
+from vrag.arama import ara, dusuk_guven, margin
+from vrag.gomleme import gomleyici_al
+from vrag.vektor_deposu import VektorDeposu, indeks_var
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB üst sınır
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-# Qdrant embedded + GPU'yu istekler arasında seri kullan (tek kullanıcılı demo).
 _kilit = threading.Lock()
 
 YUKLEME_DIZINI = config.PROJE_KOK / "yuklemeler"
 YUKLEME_DIZINI.mkdir(exist_ok=True)
+_IZINLI_KOKLER = [config.VERI_DIZINI.resolve(), YUKLEME_DIZINI.resolve()]
 
-# /gorsel yalnızca bu kökler altındaki dosyaları servis eder (path traversal koruması).
-_IZINLI_KOKLER = [
-    (config.PROJE_KOK / "veriler").resolve(),
-    config.REFERANS_DIZINI.resolve(),
-    YUKLEME_DIZINI.resolve(),
-]
-
-_depo: VektorDeposu | None = None
+_depo: dict = {"d": None}   # tek yerleşik VektorDeposu
 
 
 def _depo_al() -> VektorDeposu:
-    """Sunucu ömrü boyunca açık kalan tek Qdrant istemcisini döndürür."""
-    global _depo
-    if _depo is None:
-        _depo = VektorDeposu()
-    return _depo
+    if _depo["d"] is None:
+        _depo["d"] = VektorDeposu()
+    return _depo["d"]
 
 
+def _encoder_ad() -> str:
+    return config.ENCODER_MODELI.split("/")[-1]
+
+
+# --- Yardımcılar ------------------------------------------------------------
 def _izinli(p: Path) -> bool:
     try:
         p = p.resolve()
@@ -59,18 +55,78 @@ def _gorsel_url(yol) -> str:
     return "/gorsel?yol=" + quote(str(yol))
 
 
-def _model_listesi() -> list[str]:
-    kok = config.PROJE_KOK / "veriler"
+def _model_sayisi() -> int:
+    kok = config.VERI_DIZINI
     if not kok.exists():
-        kok = config.REFERANS_DIZINI
-    if not kok.exists():
-        return []
-    return sorted(p.name for p in kok.iterdir() if p.is_dir())
+        return 0
+    return sum(
+        1 for p in kok.rglob("*")
+        if p.is_dir() and any(
+            c.suffix.lower() in config.DESTEKLENEN_UZANTILAR for c in p.iterdir() if c.is_file()
+        )
+    )
 
 
+def _distinct_meta(alan: str) -> list[str]:
+    """metadata.json'lardan bir alanın (ör. ulke/rol) farklı değerlerini toplar."""
+    degerler: set[str] = set()
+    for mp in config.VERI_DIZINI.rglob("metadata.json"):
+        try:
+            v = json.loads(mp.read_text(encoding="utf-8")).get(alan)
+        except (OSError, ValueError):
+            continue
+        if v:
+            degerler.add(str(v))
+    return sorted(degerler)
+
+
+# --- Sayfa & uçlar ----------------------------------------------------------
 @app.route("/")
 def anasayfa():
-    return render_template("index.html", modeller=_model_listesi())
+    return render_template(
+        "index.html",
+        model_sayisi=_model_sayisi(),
+        encoder=_encoder_ad(),
+        ulkeler=_distinct_meta("ulke"),
+        roller=_distinct_meta("rol"),
+    )
+
+
+@app.route("/durum")
+def durum():
+    return jsonify({"encoder": _encoder_ad(), "indeksli": indeks_var()})
+
+
+@app.route("/indeksle", methods=["POST"])
+def indeksle():
+    try:
+        with _kilit:
+            # rmtree açık DB'yi silemez -> önce depoyu kapat.
+            if _depo["d"] is not None:
+                _depo["d"].kapat()
+                _depo["d"] = None
+            t0 = time.time()
+            son = indeksleme.calistir(dizin=config.VERI_DIZINI)
+            ozet = {"model_klasoru": son["model_klasoru"], "vektor": son["vektor"],
+                    "sure": round(time.time() - t0)}
+    except Exception as e:
+        return jsonify({"hata": str(e)}), 500
+    return jsonify(ozet)
+
+
+@app.route("/benchmark", methods=["POST"])
+def benchmark():
+    try:
+        with _kilit:
+            if not indeks_var():
+                return jsonify({"hata": "İndeks kurulu değil. Önce 'Yeniden İndeksle'."}), 409
+            t0 = time.time()
+            sonuc = {"encoder": _encoder_ad()}
+            sonuc.update(degerlendirme.retrieval_dogruluk(depo=_depo_al()))
+            sonuc["sure"] = round(time.time() - t0)
+    except Exception as e:
+        return jsonify({"hata": str(e)}), 500
+    return jsonify(sonuc)
 
 
 @app.route("/tani", methods=["POST"])
@@ -86,29 +142,43 @@ def tani():
     hedef = YUKLEME_DIZINI / f"sorgu{uzanti}"
     dosya.save(hedef)
 
+    # Opsiyonel filtreler (arayüz dropdown'ları): boşsa yok sayılır.
+    ulke = request.form.get("ulke") or None
+    rol = request.form.get("rol") or None
+
     try:
         with _kilit:
-            adaylar = ara(hedef, topk=config.VARSAYILAN_TOPK, depo=_depo_al())
-            sonuc = aday_dogrula(hedef, adaylar, vlm=True)
-    except Exception as e:  # kullanıcıya anlaşılır hata dön
+            if not indeks_var():
+                return jsonify({"hata": "İndeks kurulu değil. Önce 'Yeniden İndeksle'."}), 409
+            adaylar = ara(hedef, topk=config.VARSAYILAN_TOPK, depo=_depo_al(),
+                          ulke=ulke, rol=rol)
+    except Exception as e:
         return jsonify({"hata": str(e)}), 500
+
+    if not adaylar:
+        return jsonify({"hata": "Bu filtrelerle eşleşme bulunamadı."}), 404
 
     return jsonify({
         "sorgu": _gorsel_url(hedef),
-        "vlm": {
-            "secilen_model": sonuc.secilen_model,
-            "guven": round(sonuc.guven, 4),
-            "gerekce": sonuc.gerekce,
+        "encoder": _encoder_ad(),
+        "filtre": {"ulke": ulke, "rol": rol},
+        # Nihai tahmin = retrieval top-1 (en yüksek benzerlik).
+        "tahmin": {
+            "model": adaylar[0].model,
+            "kategori": adaylar[0].kategori,
+            "skor": round(adaylar[0].skor, 4),
+            "ozellik": adaylar[0].ayirt_edici_ozellikler,
+            "ulke": adaylar[0].ulke,
+            "uretici": adaylar[0].uretici,
+            "rol": adaylar[0].rol,
+            "motor": adaylar[0].motor_sayisi,
+            "dusuk_guven": dusuk_guven(adaylar),
+            "margin": round(margin(adaylar), 4),
         },
         "adaylar": [
-            {
-                "sira": i + 1,
-                "model": a.model,
-                "skor": round(a.skor, 4),
-                "kategori": a.kategori,
-                "aci": a.aci,
-                "gorsel": _gorsel_url(a.referans_yolu),
-            }
+            {"sira": i + 1, "model": a.model, "skor": round(a.skor, 4),
+             "kategori": a.kategori, "ulke": a.ulke, "rol": a.rol,
+             "gorsel": _gorsel_url(a.referans_yolu)}
             for i, a in enumerate(adaylar)
         ],
     })
@@ -116,7 +186,6 @@ def tani():
 
 @app.route("/gorsel")
 def gorsel():
-    """Sorgu ve referans görsellerini (yalnızca izinli kökler altında) servis eder."""
     yol = request.args.get("yol", "")
     if not yol:
         abort(400)
@@ -128,16 +197,12 @@ def gorsel():
     return send_file(p)
 
 
-def _modelleri_isit() -> None:
-    """Sunucu başlarken DINOv2, VLM ve Qdrant'ı yükleyip sıcak tutar."""
-    print("Modeller yükleniyor (DINOv2 + Qwen2.5-VL)... ilk açılış ~30 sn sürebilir",
-          flush=True)
-    gomleme_modeli_al()
-    vlm_dogrulayici_al()
-    _depo_al()
-    print("Modeller hazır → http://127.0.0.1:5000", flush=True)
+def _isit() -> None:
+    print(f"Encoder yükleniyor — {config.ENCODER_MODELI} (ilk açılış ~20 sn)...", flush=True)
+    gomleyici_al()
+    print("Hazır → http://127.0.0.1:5000", flush=True)
 
 
 if __name__ == "__main__":
-    _modelleri_isit()
+    _isit()
     app.run(host="127.0.0.1", port=5000, debug=False)

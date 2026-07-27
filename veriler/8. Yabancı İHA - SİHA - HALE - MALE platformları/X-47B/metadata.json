@@ -1,0 +1,13 @@
+{
+  "model": "X-47B",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Stealth uçan kanat, kuyruksuz, gemi güvertesi uyumlu",
+  "ulke": "ABD",
+  "uretici": "Northrop Grumman",
+  "rol": "Deneysel/Stealth UCAV",
+  "alternatif_adlar": [
+    "Pegasus"
+  ],
+  "motor_sayisi": 1,
+  "silahli": false
+}

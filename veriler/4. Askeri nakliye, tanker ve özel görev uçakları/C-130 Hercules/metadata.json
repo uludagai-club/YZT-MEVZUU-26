@@ -1,0 +1,13 @@
+{
+  "model": "C-130 Hercules",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "Dört turboprop taktik nakliye; yüksek kanat, arka rampa",
+  "ulke": "ABD",
+  "uretici": "Lockheed Martin",
+  "rol": "Taktik Nakliye",
+  "alternatif_adlar": [
+    "Herky"
+  ],
+  "motor_sayisi": 4,
+  "silahli": false
+}

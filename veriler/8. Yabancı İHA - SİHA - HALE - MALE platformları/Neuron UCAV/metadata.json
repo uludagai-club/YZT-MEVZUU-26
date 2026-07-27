@@ -1,0 +1,13 @@
+{
+  "model": "nEUROn UCAV",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Stealth uçan kanat, kuyruksuz insansız muharip",
+  "ulke": "Avrupa",
+  "uretici": "Dassault",
+  "rol": "Deneysel/Stealth UCAV",
+  "alternatif_adlar": [
+    "Neuron"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

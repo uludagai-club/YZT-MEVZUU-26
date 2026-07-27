@@ -1,0 +1,13 @@
+{
+  "model": "WZ-7 Soaring Dragon",
+  "kategori": "İHA",
+  "ayirt_edici_ozellikler": "Yüksek irtifa keşif, birleşik (joined) kanat, tek jet motor",
+  "ulke": "Çin",
+  "uretici": "Guizhou",
+  "rol": "Keşif (HALE)",
+  "alternatif_adlar": [
+    "Xianglong"
+  ],
+  "motor_sayisi": 1,
+  "silahli": false
+}

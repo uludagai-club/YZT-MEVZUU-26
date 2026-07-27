@@ -1,0 +1,13 @@
+{
+  "model": "AH-1 Super Cobra",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "Dar taarruz gövdesi, tandem (arka arkaya) kokpit, kısa kanatçık, kızak iniş takımı",
+  "ulke": "ABD",
+  "uretici": "Bell",
+  "rol": "Taarruz Helikopteri",
+  "alternatif_adlar": [
+    "Cobra"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

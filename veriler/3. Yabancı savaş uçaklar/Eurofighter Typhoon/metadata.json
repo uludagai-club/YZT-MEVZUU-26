@@ -1,0 +1,13 @@
+{
+  "model": "Eurofighter Typhoon",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Çift motor, delta kanat + canard, tek dikey kuyruk, karın hava alığı",
+  "ulke": "Avrupa",
+  "uretici": "Airbus/BAE/Leonardo",
+  "rol": "Çok Rollü Avcı",
+  "alternatif_adlar": [
+    "Typhoon"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

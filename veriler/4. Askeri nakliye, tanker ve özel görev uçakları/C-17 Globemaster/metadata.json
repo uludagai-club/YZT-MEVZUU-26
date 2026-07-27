@@ -1,0 +1,13 @@
+{
+  "model": "C-17 Globemaster III",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "Dört jet motorlu stratejik nakliye; yüksek kanat, T-kuyruk, winglet",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Stratejik Nakliye",
+  "alternatif_adlar": [
+    "Globemaster"
+  ],
+  "motor_sayisi": 4,
+  "silahli": false
+}

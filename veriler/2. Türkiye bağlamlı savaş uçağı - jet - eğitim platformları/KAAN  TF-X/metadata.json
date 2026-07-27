@@ -1,0 +1,15 @@
+{
+  "model": "Kaan",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Milli muharip jet (TF-X/MMU); çift motor, gizli (stealth) hatlar, iç silah yuvası",
+  "ulke": "Türkiye",
+  "uretici": "TUSAŞ",
+  "rol": "Muharip/Stealth (5. nesil)",
+  "alternatif_adlar": [
+    "TF-X",
+    "MMU",
+    "Milli Muharip Uçak"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

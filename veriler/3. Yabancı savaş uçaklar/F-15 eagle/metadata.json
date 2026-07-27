@@ -1,0 +1,13 @@
+{
+  "model": "F-15 Eagle",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Çift motor, ikiz dikey kuyruk, geniş düz kanat, kutu şeklinde yan hava alıkları",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Hava Üstünlüğü Avcısı",
+  "alternatif_adlar": [
+    "Eagle"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

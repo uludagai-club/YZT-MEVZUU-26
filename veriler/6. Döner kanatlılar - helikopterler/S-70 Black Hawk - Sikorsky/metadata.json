@@ -1,0 +1,14 @@
+{
+  "model": "S-70 Black Hawk",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "Dört palli ana rotor, eğik kuyruk rotoru, alçak ve uzun gövde",
+  "ulke": "ABD",
+  "uretici": "Sikorsky",
+  "rol": "Çok Amaçlı Helikopter",
+  "alternatif_adlar": [
+    "Black Hawk",
+    "UH-60"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

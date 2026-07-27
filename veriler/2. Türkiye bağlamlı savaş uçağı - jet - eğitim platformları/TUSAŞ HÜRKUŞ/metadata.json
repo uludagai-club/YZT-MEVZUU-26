@@ -1,0 +1,13 @@
+{
+  "model": "Tusaş Hürkuş",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Tek turboprop eğitim uçağı; pervane, tandem kokpit",
+  "ulke": "Türkiye",
+  "uretici": "TUSAŞ",
+  "rol": "Eğitim",
+  "alternatif_adlar": [
+    "Hürkuş"
+  ],
+  "motor_sayisi": 1,
+  "silahli": false
+}

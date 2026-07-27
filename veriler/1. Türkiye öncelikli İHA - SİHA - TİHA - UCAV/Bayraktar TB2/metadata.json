@@ -1,0 +1,13 @@
+{
+  "model": "Bayraktar TB2",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Düz sabit kanat, ters-V kuyruk, arkada tek pervane",
+  "ulke": "Türkiye",
+  "uretici": "Baykar",
+  "rol": "Keşif/Taarruz",
+  "alternatif_adlar": [
+    "TB2"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

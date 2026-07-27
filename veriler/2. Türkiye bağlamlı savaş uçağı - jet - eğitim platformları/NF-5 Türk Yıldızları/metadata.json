@@ -1,0 +1,14 @@
+{
+  "model": "NF-5 (Türk Yıldızları)",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Hafif jet (Freedom Fighter); sivri burun, kısa kanat; gösteri uçağı",
+  "ulke": "Türkiye",
+  "uretici": "Canadair/Northrop",
+  "rol": "Gösteri (akrobasi)",
+  "alternatif_adlar": [
+    "F-5",
+    "Freedom Fighter"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

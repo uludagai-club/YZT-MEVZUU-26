@@ -1,0 +1,13 @@
+{
+  "model": "Tusaş ANKA",
+  "kategori": "İHA",
+  "ayirt_edici_ozellikler": "MALE İHA, arkada itici pervane, twin-boom, V-kuyruk",
+  "ulke": "Türkiye",
+  "uretici": "TUSAŞ",
+  "rol": "Keşif/Gözetleme",
+  "alternatif_adlar": [
+    "Anka"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

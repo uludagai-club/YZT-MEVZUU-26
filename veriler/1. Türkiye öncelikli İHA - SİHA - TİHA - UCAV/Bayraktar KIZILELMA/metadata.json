@@ -1,0 +1,14 @@
+{
+  "model": "Bayraktar Kızılelma",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "İnsansız muharip jet; ok/delta kanat, tek motor, gizli hatlar",
+  "ulke": "Türkiye",
+  "uretici": "Baykar",
+  "rol": "Muharip İHA",
+  "alternatif_adlar": [
+    "MİUS",
+    "Kızılelma"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

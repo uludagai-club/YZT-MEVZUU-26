@@ -1,0 +1,14 @@
+{
+  "model": "Airbus A330 MRTT",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "Geniş gövdeli tanker, kanat altında çift turbofan, yakıt ikmal borusu/hortumu",
+  "ulke": "Avrupa",
+  "uretici": "Airbus",
+  "rol": "Tanker/Nakliye",
+  "alternatif_adlar": [
+    "MRTT",
+    "Voyager"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

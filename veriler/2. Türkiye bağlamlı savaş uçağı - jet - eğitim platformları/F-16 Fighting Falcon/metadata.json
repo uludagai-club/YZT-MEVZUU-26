@@ -1,0 +1,13 @@
+{
+  "model": "F-16 Fighting Falcon",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Tek motor, tek dikey kuyruk, karın hava alığı",
+  "ulke": "ABD",
+  "uretici": "Lockheed Martin",
+  "rol": "Çok Rollü Avcı",
+  "alternatif_adlar": [
+    "Viper"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

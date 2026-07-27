@@ -1,0 +1,14 @@
+{
+  "model": "Orion UAV",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "MALE SİHA, düz kanat, V kuyruk, arkada itici pervane",
+  "ulke": "Rusya",
+  "uretici": "Kronshtadt",
+  "rol": "Keşif/Taarruz",
+  "alternatif_adlar": [
+    "Inokhodets",
+    "Orion-E"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

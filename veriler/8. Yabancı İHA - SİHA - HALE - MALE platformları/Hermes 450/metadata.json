@@ -1,0 +1,13 @@
+{
+  "model": "Hermes 450",
+  "kategori": "İHA",
+  "ayirt_edici_ozellikler": "İnce uzun gövde, düz kanat, V kuyruk, arkada itici pervane",
+  "ulke": "İsrail",
+  "uretici": "Elbit Systems",
+  "rol": "Keşif",
+  "alternatif_adlar": [
+    "Hermes"
+  ],
+  "motor_sayisi": 1,
+  "silahli": false
+}

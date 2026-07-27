@@ -1,0 +1,14 @@
+{
+  "model": "CH-4",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "MALE SİHA, düz kanat, V kuyruk, arkada itici pervane",
+  "ulke": "Çin",
+  "uretici": "CASC",
+  "rol": "Keşif/Taarruz",
+  "alternatif_adlar": [
+    "CH-4 Rainbow",
+    "Caihong"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

@@ -1,0 +1,13 @@
+{
+  "model": "Tusaş ANKA 3",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Stealth uçan kanat (flying wing), kuyruksuz SİHA",
+  "ulke": "Türkiye",
+  "uretici": "TUSAŞ",
+  "rol": "Muharip/Stealth (kanat gövde)",
+  "alternatif_adlar": [
+    "Anka-3"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

@@ -1,0 +1,13 @@
+{
+  "model": "Airbus C-295W",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "İki turboprop, yüksek kanat, arka yükleme rampası, T-kuyruk",
+  "ulke": "İspanya/Avrupa",
+  "uretici": "Airbus",
+  "rol": "Taktik Nakliye",
+  "alternatif_adlar": [
+    "C-295"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

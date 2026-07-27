@@ -1,0 +1,11 @@
+{
+  "model": "Mirage 2000",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Tek motor, saf delta kanat, yatay kuyruk yok, tek dikey kuyruk",
+  "ulke": "Fransa",
+  "uretici": "Dassault",
+  "rol": "Çok Rollü Avcı",
+  "alternatif_adlar": [],
+  "motor_sayisi": 1,
+  "silahli": true
+}

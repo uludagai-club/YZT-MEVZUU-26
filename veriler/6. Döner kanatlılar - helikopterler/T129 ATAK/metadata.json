@@ -1,0 +1,14 @@
+{
+  "model": "T129 ATAK",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "Taarruz helikopteri; tandem kokpit, ince gövde, gövde altı silahlar",
+  "ulke": "Türkiye",
+  "uretici": "TUSAŞ/Leonardo",
+  "rol": "Taarruz Helikopteri",
+  "alternatif_adlar": [
+    "ATAK",
+    "A129 Mangusta"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

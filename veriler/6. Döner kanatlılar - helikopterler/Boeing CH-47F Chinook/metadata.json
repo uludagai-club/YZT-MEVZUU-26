@@ -1,0 +1,13 @@
+{
+  "model": "CH-47F Chinook",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "Tandem çift ana rotor (kuyruk rotoru yok), uzun gövde, arka rampa",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Ağır Nakliye Helikopteri",
+  "alternatif_adlar": [
+    "Chinook"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

@@ -1,0 +1,13 @@
+{
+  "model": "Taranis UCAV",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Stealth uçan kanat, kuyruksuz, gizli hava alığı",
+  "ulke": "Birleşik Krallık",
+  "uretici": "BAE Systems",
+  "rol": "Deneysel/Stealth UCAV",
+  "alternatif_adlar": [
+    "Taranis"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

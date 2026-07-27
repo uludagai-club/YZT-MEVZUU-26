@@ -1,0 +1,13 @@
+{
+  "model": "Dassault Rafale",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Çift motor, delta kanat + canard, tek dikey kuyruk",
+  "ulke": "Fransa",
+  "uretici": "Dassault",
+  "rol": "Çok Rollü Avcı",
+  "alternatif_adlar": [
+    "Rafale"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

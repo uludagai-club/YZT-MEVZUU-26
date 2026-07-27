@@ -1,0 +1,14 @@
+{
+  "model": "F-4E Phantom II Terminator",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "F-4E modernizasyonu (Türkiye), Phantom silüeti",
+  "ulke": "ABD/Türkiye",
+  "uretici": "McDonnell Douglas / TUSAŞ-IAI",
+  "rol": "Avcı-Bombardıman (modernize)",
+  "alternatif_adlar": [
+    "Terminator 2020",
+    "Phantom"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

@@ -1,0 +1,13 @@
+{
+  "model": "F-5E Tiger 2 Swiss Air Force",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Küçük gövde, çift motor, sivri burun, keskin kanat",
+  "ulke": "ABD",
+  "uretici": "Northrop",
+  "rol": "Hafif Avcı",
+  "alternatif_adlar": [
+    "Tiger II"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

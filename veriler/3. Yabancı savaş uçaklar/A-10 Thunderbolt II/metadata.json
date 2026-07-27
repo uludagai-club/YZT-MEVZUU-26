@@ -1,0 +1,13 @@
+{
+  "model": "A-10 Thunderbolt II",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Gövde üstünde çift turbofan, ikiz dikey kuyruk, düz kanat, burunda toplu namlulu top",
+  "ulke": "ABD",
+  "uretici": "Fairchild Republic",
+  "rol": "Yakın Hava Desteği",
+  "alternatif_adlar": [
+    "Warthog"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

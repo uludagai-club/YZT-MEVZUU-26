@@ -1,0 +1,13 @@
+{
+  "model": "CASA CN-235",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "Çift turboprop hafif nakliye; yüksek kanat, arka rampa",
+  "ulke": "İspanya/Türkiye",
+  "uretici": "Airbus (CASA) / TUSAŞ",
+  "rol": "Taktik Nakliye",
+  "alternatif_adlar": [
+    "CN-235"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

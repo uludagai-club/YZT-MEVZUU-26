@@ -1,0 +1,14 @@
+{
+  "model": "Boeing E-7T Barış Kartalı",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "737 gövdesi üzerinde sabit MESA radar anteni (sırt üstü levha), çift turbofan",
+  "ulke": "ABD/Türkiye",
+  "uretici": "Boeing",
+  "rol": "Erken Uyarı (AWACS)",
+  "alternatif_adlar": [
+    "E-7 Wedgetail",
+    "Barış Kartalı"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

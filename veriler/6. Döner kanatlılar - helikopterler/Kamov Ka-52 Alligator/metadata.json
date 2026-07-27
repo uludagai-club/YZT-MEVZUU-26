@@ -1,0 +1,14 @@
+{
+  "model": "Kamov Ka-52 Alligator",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "Eş eksenli çift rotor (kuyruk rotoru yok), yan yana kokpit",
+  "ulke": "Rusya",
+  "uretici": "Kamov",
+  "rol": "Taarruz Helikopteri (coaxial)",
+  "alternatif_adlar": [
+    "Alligator",
+    "Hokum B"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

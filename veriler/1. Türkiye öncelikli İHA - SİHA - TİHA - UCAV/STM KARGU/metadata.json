@@ -1,0 +1,13 @@
+{
+  "model": "STM Kargu",
+  "kategori": "Drone",
+  "ayirt_edici_ozellikler": "Dört rotorlu (quadcopter) kamikaze dron",
+  "ulke": "Türkiye",
+  "uretici": "STM",
+  "rol": "Kamikaze (rotary)",
+  "alternatif_adlar": [
+    "Kargu"
+  ],
+  "motor_sayisi": 4,
+  "silahli": true
+}

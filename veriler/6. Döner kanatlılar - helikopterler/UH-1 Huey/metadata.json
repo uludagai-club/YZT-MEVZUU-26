@@ -1,0 +1,14 @@
+{
+  "model": "UH-1 Huey",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "İki palli ana rotor, kızak iniş takımı, yuvarlak burun",
+  "ulke": "ABD",
+  "uretici": "Bell",
+  "rol": "Çok Amaçlı Helikopter",
+  "alternatif_adlar": [
+    "Huey",
+    "Iroquois"
+  ],
+  "motor_sayisi": 1,
+  "silahli": false
+}

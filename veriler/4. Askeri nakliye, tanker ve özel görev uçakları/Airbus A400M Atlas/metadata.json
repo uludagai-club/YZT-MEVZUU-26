@@ -1,0 +1,13 @@
+{
+  "model": "Airbus A400M Atlas",
+  "kategori": "Nakliye/Özel Görev Uçağı",
+  "ayirt_edici_ozellikler": "Dört turboprop askeri nakliye; yüksek kanat, T-kuyruk",
+  "ulke": "Avrupa",
+  "uretici": "Airbus",
+  "rol": "Taktik/Stratejik Nakliye",
+  "alternatif_adlar": [
+    "Atlas"
+  ],
+  "motor_sayisi": 4,
+  "silahli": false
+}

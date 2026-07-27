@@ -1,0 +1,13 @@
+{
+  "model": "B-2 Spirit",
+  "kategori": "Bombardıman Uçağı",
+  "ayirt_edici_ozellikler": "Stealth uçan kanat, kuyruksuz, testere dişli firar kenarı",
+  "ulke": "ABD",
+  "uretici": "Northrop Grumman",
+  "rol": "Stratejik Bombardıman/Stealth",
+  "alternatif_adlar": [
+    "Spirit"
+  ],
+  "motor_sayisi": 4,
+  "silahli": true
+}

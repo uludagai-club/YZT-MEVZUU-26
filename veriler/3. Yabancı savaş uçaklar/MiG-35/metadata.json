@@ -1,0 +1,13 @@
+{
+  "model": "MiG-35",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "MiG-29 türevi, çift motor, ikiz dikey kuyruk",
+  "ulke": "Rusya",
+  "uretici": "Mikoyan (MiG)",
+  "rol": "Çok Rollü Avcı",
+  "alternatif_adlar": [
+    "Fulcrum-F"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

@@ -1,0 +1,11 @@
+{
+  "model": "Bayraktar DİHA",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Dikey iniş-kalkış (VTOL) hibrit İHA",
+  "ulke": "Türkiye",
+  "uretici": "Baykar",
+  "rol": "Keşif/Taarruz",
+  "alternatif_adlar": [],
+  "motor_sayisi": 1,
+  "silahli": true
+}

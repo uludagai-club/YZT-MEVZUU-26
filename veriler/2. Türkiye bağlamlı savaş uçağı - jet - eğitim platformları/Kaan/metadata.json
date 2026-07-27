@@ -1,0 +1,15 @@
+{
+  "model": "Kaan",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Milli muharip uçak, çift motor, stealth, ikiz dikey kuyruk",
+  "ulke": "Türkiye",
+  "uretici": "TUSAŞ",
+  "rol": "Muharip/Stealth (5. nesil)",
+  "alternatif_adlar": [
+    "TF-X",
+    "MMU",
+    "Milli Muharip Uçak"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

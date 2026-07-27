@@ -1,0 +1,14 @@
+{
+  "model": "Wing Loong I",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "MALE SİHA, düz kanat, V kuyruk, arkada itici pervane",
+  "ulke": "Çin",
+  "uretici": "AVIC (Chengdu)",
+  "rol": "Keşif/Taarruz",
+  "alternatif_adlar": [
+    "Pterodactyl I",
+    "GJ-1"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

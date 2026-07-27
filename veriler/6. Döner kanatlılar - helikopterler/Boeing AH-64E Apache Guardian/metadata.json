@@ -1,0 +1,13 @@
+{
+  "model": "AH-64E Apache Guardian",
+  "kategori": "Helikopter",
+  "ayirt_edici_ozellikler": "Taarruz helikopteri, tandem kokpit, burun altında nişan küresi, mast üstü radar",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Taarruz Helikopteri",
+  "alternatif_adlar": [
+    "Apache"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

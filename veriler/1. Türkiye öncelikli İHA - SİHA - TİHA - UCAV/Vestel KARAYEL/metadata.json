@@ -1,0 +1,13 @@
+{
+  "model": "Vestel Karayel",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Tek motorlu MALE SİHA; düz kanat, ters-V kuyruk, arkada itici pervane",
+  "ulke": "Türkiye",
+  "uretici": "Vestel",
+  "rol": "Keşif/Taarruz",
+  "alternatif_adlar": [
+    "Karayel"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

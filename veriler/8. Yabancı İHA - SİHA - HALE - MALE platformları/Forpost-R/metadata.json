@@ -1,0 +1,14 @@
+{
+  "model": "Forpost-R",
+  "kategori": "İHA",
+  "ayirt_edici_ozellikler": "Twin-boom (çift kuyruk kirişi), düz kanat, arkada itici pervane",
+  "ulke": "Rusya",
+  "uretici": "Ural (IAI lisans)",
+  "rol": "Keşif",
+  "alternatif_adlar": [
+    "Forpost",
+    "Searcher"
+  ],
+  "motor_sayisi": 1,
+  "silahli": false
+}

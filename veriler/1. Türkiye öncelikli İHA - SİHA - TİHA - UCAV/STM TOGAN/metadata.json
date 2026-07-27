@@ -1,0 +1,13 @@
+{
+  "model": "STM Togan",
+  "kategori": "Drone",
+  "ayirt_edici_ozellikler": "Dört rotorlu keşif dronu",
+  "ulke": "Türkiye",
+  "uretici": "STM",
+  "rol": "Keşif (rotary)",
+  "alternatif_adlar": [
+    "Togan"
+  ],
+  "motor_sayisi": 4,
+  "silahli": false
+}
