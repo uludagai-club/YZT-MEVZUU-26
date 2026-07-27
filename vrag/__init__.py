@@ -1,7 +1,7 @@
-"""VRAG — Teknofest hava aracı tanıma için Visual RAG retrieval hattı.
+"""VRAG — Teknofest hava aracı tanıma (tek encoder, retrieval-only Visual RAG).
 
-Boru hattı: YOLO crop -> DINOv2 embedding -> Qdrant retrieval -> (VLM doğrulama).
-Bu paket retrieval katmanını (embedding + Qdrant + arama) içerir.
+Boru hattı (2 katman): YOLO crop -> SigLIP2 embedding -> Qdrant retrieval.
+Nihai cevap = en benzer referansın modeli (retrieval top-1).
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"

@@ -156,6 +156,29 @@ button:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
   color: var(--metin);
 }
 
+/* Düşük güven uyarısı (margin küçük -> ilk iki aday çok yakın) */
+.dusuk-guven {
+  margin-top: 8px;
+  background: rgba(245, 196, 81, .12);
+  border: 1px solid var(--sari);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--sari);
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+/* Filtre satırı (ülke / rol) */
+.filtre-satir { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 14px; }
+.filtre-alan { display: flex; flex-direction: column; gap: 4px; font-size: .72rem; letter-spacing: 1px; color: var(--soluk); text-transform: uppercase; }
+.filtre-alan select {
+  background: var(--arka); color: var(--metin); border: 1px solid var(--cizgi);
+  border-radius: 8px; padding: 7px 10px; font-size: .9rem; min-width: 150px;
+}
+.filtre-not { font-size: .72rem; }
+/* Tahmin meta (ülke · üretici · rol · motor) */
+.tahmin-meta { color: var(--vurgu-2); font-size: .86rem; margin: 2px 0 8px; font-weight: 600; }
+
 /* --- Adaylar --- */
 .adaylar-baslik { font-size: 1.05rem; font-weight: 600; }
 .adaylar-grid {
@@ -198,3 +221,44 @@ button:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
   .karar-karti { grid-template-columns: 1fr; }
   .karar-gorsel img { height: 220px; }
 }
+
+/* --- Kontrol paneli --- */
+.kontrol-karti { padding: 18px 20px; }
+.kontrol-satir { display: flex; gap: 24px; flex-wrap: wrap; }
+.kontrol-alan { display: flex; flex-direction: column; gap: 6px; min-width: 220px; flex: 1; }
+.sec-sarmal { display: flex; align-items: center; gap: 10px; }
+select {
+  flex: 1; background: var(--arka); color: var(--metin);
+  border: 1px solid var(--cizgi); border-radius: 10px;
+  padding: 9px 12px; font-size: .95rem; cursor: pointer;
+}
+select:focus { outline: none; border-color: var(--vurgu); }
+.rozet-durum { font-size: .72rem; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.rozet-durum.var { background: rgba(56,214,200,.12); color: var(--vurgu); }
+.rozet-durum.yok { background: rgba(245,196,81,.14); color: var(--sari); }
+.kucuk-btn {
+  align-self: flex-start; padding: 7px 16px; font-size: .85rem;
+  border-radius: 9px; background: var(--kart); color: var(--metin);
+  border: 1px solid var(--cizgi); box-shadow: none; font-weight: 600;
+}
+.kucuk-btn:hover:not(:disabled) { border-color: var(--vurgu); transform: none; }
+.vurgu-btn { background: linear-gradient(180deg, var(--vurgu), var(--vurgu-2)); color: #06222a; border: none; }
+.kontrol-durum { margin-top: 12px; font-size: .85rem; }
+.kontrol-durum b { color: var(--metin); }
+
+/* --- Benchmark --- */
+.benchmark-karti { padding: 18px 20px; }
+.benchmark-ust { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.benchmark-ust h3 { font-size: 1.05rem; }
+.onay { display: inline-flex; align-items: center; gap: 7px; font-size: .85rem; margin-top: 6px; cursor: pointer; }
+.tablo-sarmal { overflow-x: auto; }
+#benchmark-tablo { width: 100%; border-collapse: collapse; font-size: .9rem; }
+#benchmark-tablo th, #benchmark-tablo td { padding: 9px 12px; text-align: center; border-bottom: 1px solid var(--cizgi); white-space: nowrap; }
+#benchmark-tablo th { color: var(--soluk); font-weight: 600; font-size: .78rem; letter-spacing: .5px; }
+#benchmark-tablo td:first-child, #benchmark-tablo th:first-child { text-align: left; }
+#benchmark-tablo tbody tr:hover { background: rgba(56,214,200,.04); }
+#benchmark-tablo .bos td { color: var(--soluk); text-align: center; padding: 18px; }
+#benchmark-tablo .yeni { animation: parla 1s ease; }
+@keyframes parla { from { background: rgba(56,214,200,.18); } to { background: transparent; } }
+.metrik { font-weight: 700; color: var(--vurgu); }
+#sonuc-config { text-transform: none; letter-spacing: 0; }

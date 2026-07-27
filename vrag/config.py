@@ -1,7 +1,7 @@
-"""VRAG proje ayarları — tüm sabitler ve yollar tek yerde toplanır.
+"""VRAG ayarları — tek encoder, retrieval-only, optimal yapılandırma.
 
-Model, Qdrant koleksiyonu, augmentation ve arama davranışını buradan tek
-noktadan değiştirebilirsin. Kod içine sabit gömülmez; her şey buraya bakar.
+Tüm sabitler tek yerde. Sistem kazanan yapılandırmaya sabitlenmiştir:
+SigLIP2-so400m encoder + Qdrant retrieval + perspektif augmentation + güven kapısı.
 """
 from __future__ import annotations
 
@@ -10,37 +10,42 @@ from pathlib import Path
 import torch
 
 # --- Yollar -----------------------------------------------------------------
-# Bu dosya vrag/config.py içinde; proje kökü bir üst dizin.
 PROJE_KOK = Path(__file__).resolve().parent.parent
-REFERANS_DIZINI = PROJE_KOK / "data" / "reference"
-QDRANT_YOLU = PROJE_KOK / "qdrant_db"
+VERI_DIZINI = PROJE_KOK / "veriler"      # referans veri (kategorili yapı)
+QDRANT_YOLU = PROJE_KOK / "qdrant_db"    # embedded Qdrant indeksi
 
-# --- Embedding modeli -------------------------------------------------------
-# DINOv2: self-supervised olduğu için silüet/şekil benzerliğinde güçlü.
-# Üstten çekilmiş uçak ayrımında asıl sinyal silüet olduğundan uygun.
-GOMLEME_MODELI = "facebook/dinov2-base"
-VEKTOR_BOYUTU = 768          # dinov2-base çıktı boyutu (small=384, large=1024)
+# --- Encoder (tek) ----------------------------------------------------------
+# Benchmark'ta en iyi çıkan encoder (leave-one-out top-1 %88.5; DINOv2/CLIP'i
+# ve diğer SigLIP'leri geçti). Kontrastif SigLIP2 ailesi silüet işinde en iyisi.
+ENCODER_MODELI = "google/siglip2-so400m-patch14-384"
 CIHAZ = "cuda" if torch.cuda.is_available() else "cpu"
-TOPLU_BOYUT = 16             # embedding çıkarımında batch boyutu (8 GB VRAM'e uygun)
+TOPLU_BOYUT = 16             # embedding çıkarımında batch (8 GB VRAM'e uygun)
 
 # --- Qdrant -----------------------------------------------------------------
 KOLEKSIYON_ADI = "hava_araclari"
-# Vektörler L2-normalize edildiğinden kosinüs benzerliği kullanıyoruz.
+# Vektörler L2-normalize edildiğinden kosinüs benzerliği kullanılır.
 
 # --- Arama ------------------------------------------------------------------
 VARSAYILAN_TOPK = 5
 # Model bazında tekilleştirmeden ÖNCE Qdrant'tan çekilecek ham sonuç sayısı.
-# Aynı modelin çok sayıda varyasyonu olduğundan bol çekip sonra tekilleştiriyoruz.
 HAM_ARAMA_LIMITI = 64
+# Güven kapısı: top-1 ile top-2 skorunun farkı (margin) bundan KÜÇÜKSE tahmin
+# "düşük güven" sayılır (ilk iki aday neredeyse eşit -> model kararsız). Mutlak
+# skor doğrulukla kalibre değil; margin iyi ayırıyor (yanlış medyan 0.007, doğru
+# 0.057). m=0.015'te yanlışların ~%86'sı yakalanır. 0 => kapı kapalı.
+MARGIN_ESIGI = 0.015
 
-# --- Augmentation (drone kamerası varyasyonlarını simüle eder) --------------
+# --- Augmentation (drone kamerası + bakış açısı varyasyonlarını simüle eder) -
 # Her referans görselden orijinal + aşağıdaki dönüşümlerle varyasyonlar üretilir.
-DONME_ACILARI = (-12, 12)          # derece cinsinden döndürme açıları
-OLCEK_FAKTORLERI = (0.8,)          # küçültme / uzaklaşma simülasyonu
-BULANIKLIK_YARICAPI = 1.2          # Gaussian blur yarıçapı (drone kamerası netsizliği)
+DONME_ACILARI = (-12, 12)          # derece cinsinden döndürme
+OLCEK_FAKTORLERI = (0.8,)          # küçültme / uzaklaşma
+BULANIKLIK_YARICAPI = 1.2          # Gaussian blur (drone kamerası netsizliği)
+# Perspektif (eğim): yandan referansa hafif eğik-bakış varyasyonu. Yalnızca
+# indeks tarafı -> sorgu hızını etkilemez; ölçümde +0.8 top-1 kazandırdı.
+PERSPEKTIF_AKTIF = True
+PERSPEKTIF_EGIM = 0.18             # üst kenarın içe kayma oranı (0..0.5)
 
 # --- Kategoriler & dosya türleri --------------------------------------------
-# metadata.json içindeki "kategori" alanı için beklenen değerler (uyarı amaçlı).
 BILINEN_KATEGORILER = (
     "Savaş Uçağı",
     "Bombardıman Uçağı",
@@ -52,17 +57,3 @@ BILINEN_KATEGORILER = (
     "Drone",
 )
 DESTEKLENEN_UZANTILAR = (".jpg", ".jpeg", ".png")
-
-# --- VLM doğrulama katmanı (Qwen2.5-VL) -------------------------------------
-# Retrieval'dan gelen adaylar arasından karşılaştırmalı seçim yapan görsel-dil
-# modeli. Yerel/offline çalışır. Backend değiştirilebilir (bkz. dogrulama.py).
-VLM_MODELI = "Qwen/Qwen2.5-VL-7B-Instruct"
-VLM_ADAY_SAYISI = 3          # VLM'e gönderilecek en iyi aday sayısı (VRAM/token sınırı)
-VLM_MAX_YENI_TOKEN = 160     # VLM üretim uzunluğu (gerekçe kısa; hız için sınırlı)
-# 8 GB VRAM için varsayılan 4-bit (bitsandbytes). >12 GB GPU'da False (bf16) yapılabilir.
-VLM_4BIT = True
-# Qwen görüntü işleyici piksel sınırları (patch = 28x28). Üst sınır VRAM'i kontrol eder;
-# büyük görseller otomatik küçültülür.
-# Düşük çözünürlük = daha az görsel token = 7B'de çok daha hızlı çıkarım.
-VLM_MIN_PIKSEL = 128 * 28 * 28
-VLM_MAX_PIKSEL = 256 * 28 * 28
