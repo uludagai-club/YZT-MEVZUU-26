@@ -1,0 +1,11 @@
+{
+  "model": "ATR 72",
+  "kategori": "Yolcu Uçağı",
+  "ayirt_edici_ozellikler": "Yüksek kanat, 2 turboprop pervane, bölgesel",
+  "ulke": "Avrupa",
+  "uretici": "ATR",
+  "rol": "Bölgesel turboprop yolcu uçağı",
+  "alternatif_adlar": [],
+  "motor_sayisi": 2,
+  "silahli": false
+}

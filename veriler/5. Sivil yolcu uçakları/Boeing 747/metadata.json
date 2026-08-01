@@ -1,0 +1,13 @@
+{
+  "model": "Boeing 747",
+  "kategori": "Yolcu Uçağı",
+  "ayirt_edici_ozellikler": "Üst güverte kamburu, 4 motor (jumbo)",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Geniş gövde yolcu uçağı",
+  "alternatif_adlar": [
+    "Jumbo Jet"
+  ],
+  "motor_sayisi": 4,
+  "silahli": false
+}

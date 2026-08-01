@@ -1,0 +1,11 @@
+{
+  "model": "Airbus A320",
+  "kategori": "Yolcu Uçağı",
+  "ayirt_edici_ozellikler": "Tek koridor, kısa gövde, keskin kanat ucu (sharklet)",
+  "ulke": "Avrupa",
+  "uretici": "Airbus",
+  "rol": "Dar gövde yolcu uçağı",
+  "alternatif_adlar": [],
+  "motor_sayisi": 2,
+  "silahli": false
+}

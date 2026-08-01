@@ -1,0 +1,14 @@
+{
+  "model": "IAI Harop",
+  "kategori": "Kamikaze İHA",
+  "ayirt_edici_ozellikler": "İnce gövde, ters-V kuyruk, ön kanard, arkada itici pervane",
+  "ulke": "İsrail",
+  "uretici": "IAI",
+  "rol": "Gezinen Mühimmat (kamikaze)",
+  "alternatif_adlar": [
+    "Harop",
+    "Harpy 2"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

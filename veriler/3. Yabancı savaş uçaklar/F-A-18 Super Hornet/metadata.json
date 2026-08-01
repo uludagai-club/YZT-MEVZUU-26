@@ -1,0 +1,14 @@
+{
+  "model": "F/A-18E Super Hornet",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Çift motor, dikdörtgen hava alıkları, ikiz eğik dikey kuyruk; gemi konuşlu",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Çok Rollü Avcı (deniz)",
+  "alternatif_adlar": [
+    "Super Hornet",
+    "Rhino"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

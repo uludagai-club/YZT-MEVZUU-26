@@ -1,0 +1,13 @@
+{
+  "model": "Chengdu J-20",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Çift motor, kanard + delta, gizli hatlar, uzun gövde",
+  "ulke": "Çin",
+  "uretici": "Chengdu (CAC)",
+  "rol": "Avcı/Stealth (5. nesil)",
+  "alternatif_adlar": [
+    "Mighty Dragon"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

@@ -1,0 +1,14 @@
+{
+  "model": "İş Jeti (Gulfstream vb.)",
+  "kategori": "İş Jeti",
+  "ayirt_edici_ozellikler": "Gövde arkasına monteli 2 motor, keskin/T kuyruk",
+  "ulke": "Çeşitli",
+  "uretici": "Gulfstream / Bombardier / Dassault",
+  "rol": "İş jeti",
+  "alternatif_adlar": [
+    "Business jet",
+    "Gulfstream"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

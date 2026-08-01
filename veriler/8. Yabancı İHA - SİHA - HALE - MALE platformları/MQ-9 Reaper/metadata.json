@@ -1,0 +1,14 @@
+{
+  "model": "MQ-9 Reaper",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "Tek turboprop (arkada itici), V-kuyruk, düz uzun kanat",
+  "ulke": "ABD",
+  "uretici": "General Atomics",
+  "rol": "Keşif/Taarruz (MALE)",
+  "alternatif_adlar": [
+    "Predator B",
+    "Reaper"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

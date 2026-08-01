@@ -1,0 +1,13 @@
+{
+  "model": "Piper PA-28",
+  "kategori": "Hafif Uçak",
+  "ayirt_edici_ozellikler": "Alçak kanat, tek pervane, genel havacılık",
+  "ulke": "ABD",
+  "uretici": "Piper",
+  "rol": "Hafif genel havacılık uçağı",
+  "alternatif_adlar": [
+    "Cherokee"
+  ],
+  "motor_sayisi": 1,
+  "silahli": false
+}

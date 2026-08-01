@@ -1,0 +1,14 @@
+{
+  "model": "JF-17 Thunder",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Tek motor, yanal hava alıkları, tek dikey kuyruk",
+  "ulke": "Çin/Pakistan",
+  "uretici": "CAC / PAC",
+  "rol": "Hafif Çok Rollü Avcı",
+  "alternatif_adlar": [
+    "FC-1",
+    "Thunder"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

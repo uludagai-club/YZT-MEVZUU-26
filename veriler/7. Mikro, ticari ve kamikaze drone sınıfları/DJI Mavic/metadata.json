@@ -1,0 +1,13 @@
+{
+  "model": "DJI Mavic",
+  "kategori": "Ticari Drone",
+  "ayirt_edici_ozellikler": "Katlanır kollu küçük quadcopter, önde gimbal kamera",
+  "ulke": "Çin",
+  "uretici": "DJI",
+  "rol": "Ticari/Tüketici Quadcopter",
+  "alternatif_adlar": [
+    "Mavic"
+  ],
+  "motor_sayisi": 4,
+  "silahli": false
+}

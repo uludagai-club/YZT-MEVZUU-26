@@ -1,0 +1,13 @@
+{
+  "model": "Airbus A380",
+  "kategori": "Yolcu Uçağı",
+  "ayirt_edici_ozellikler": "Tam boy çift güverte, 4 motor (dev)",
+  "ulke": "Avrupa",
+  "uretici": "Airbus",
+  "rol": "Çift katlı geniş gövde yolcu uçağı",
+  "alternatif_adlar": [
+    "Superjumbo"
+  ],
+  "motor_sayisi": 4,
+  "silahli": false
+}

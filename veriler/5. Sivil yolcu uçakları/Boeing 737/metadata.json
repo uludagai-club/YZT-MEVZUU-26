@@ -1,0 +1,14 @@
+{
+  "model": "Boeing 737",
+  "kategori": "Yolcu Uçağı",
+  "ayirt_edici_ozellikler": "Tek koridor dar gövde, 2 turbofan kanat altında",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Dar gövde yolcu uçağı",
+  "alternatif_adlar": [
+    "737 NG",
+    "737 Classic"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

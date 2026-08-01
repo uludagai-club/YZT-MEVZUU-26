@@ -1,0 +1,14 @@
+{
+  "model": "MQ-1 Predator",
+  "kategori": "SİHA",
+  "ayirt_edici_ozellikler": "İnce gövde, ters-V kuyruk, arkada itici pervane, çıkıntılı burun (uydu anteni)",
+  "ulke": "ABD",
+  "uretici": "General Atomics",
+  "rol": "Keşif/Taarruz (MALE)",
+  "alternatif_adlar": [
+    "Predator",
+    "RQ-1"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

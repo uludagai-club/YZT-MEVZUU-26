@@ -1,0 +1,13 @@
+{
+  "model": "RQ-4 Global Hawk",
+  "kategori": "İHA",
+  "ayirt_edici_ozellikler": "Tek jet motor, çok uzun düz kanat, balina-benzeri burun, V-kuyruk",
+  "ulke": "ABD",
+  "uretici": "Northrop Grumman",
+  "rol": "Keşif (HALE)",
+  "alternatif_adlar": [
+    "Global Hawk"
+  ],
+  "motor_sayisi": 1,
+  "silahli": false
+}

@@ -1,0 +1,11 @@
+{
+  "model": "Airbus A330",
+  "kategori": "Yolcu Uçağı",
+  "ayirt_edici_ozellikler": "İki motor, geniş gövde",
+  "ulke": "Avrupa",
+  "uretici": "Airbus",
+  "rol": "Geniş gövde yolcu uçağı",
+  "alternatif_adlar": [],
+  "motor_sayisi": 2,
+  "silahli": false
+}

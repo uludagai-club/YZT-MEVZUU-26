@@ -1,0 +1,14 @@
+{
+  "model": "Chengdu J-10",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Tek motor, delta kanat + kanard, karın hava alığı",
+  "ulke": "Çin",
+  "uretici": "Chengdu (CAC)",
+  "rol": "Çok Rollü Avcı",
+  "alternatif_adlar": [
+    "Vigorous Dragon",
+    "J-10"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

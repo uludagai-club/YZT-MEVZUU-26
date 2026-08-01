@@ -1,0 +1,13 @@
+{
+  "model": "HAL Tejas",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Tek motor, kuyruksuz delta kanat, kompozit gövde; küçük",
+  "ulke": "Hindistan",
+  "uretici": "HAL",
+  "rol": "Hafif Avcı",
+  "alternatif_adlar": [
+    "Tejas"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

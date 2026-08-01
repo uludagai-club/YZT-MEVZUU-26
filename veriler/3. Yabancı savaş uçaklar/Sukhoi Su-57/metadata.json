@@ -1,0 +1,15 @@
+{
+  "model": "Sukhoi Su-57",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Çift motor, geniş gövde, LEVCON kanat kökü, ikiz dikey kuyruk",
+  "ulke": "Rusya",
+  "uretici": "Sukhoi",
+  "rol": "Avcı/Stealth (5. nesil)",
+  "alternatif_adlar": [
+    "Felon",
+    "PAK FA",
+    "T-50"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

@@ -1,0 +1,13 @@
+{
+  "model": "Cessna 172",
+  "kategori": "Hafif Uçak",
+  "ayirt_edici_ozellikler": "Yüksek kanat, tek pervane, sabit iniş takımı",
+  "ulke": "ABD",
+  "uretici": "Cessna",
+  "rol": "Hafif genel havacılık uçağı",
+  "alternatif_adlar": [
+    "Skyhawk"
+  ],
+  "motor_sayisi": 1,
+  "silahli": false
+}

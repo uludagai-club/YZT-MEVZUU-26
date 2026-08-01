@@ -1,0 +1,14 @@
+{
+  "model": "Airbus A350",
+  "kategori": "Yolcu Uçağı",
+  "ayirt_edici_ozellikler": "Kavisli kanat uçları, siyah 'gözlük' kokpit cam çerçevesi",
+  "ulke": "Avrupa (AB)",
+  "uretici": "Airbus",
+  "rol": "Geniş Gövde Yolcu",
+  "alternatif_adlar": [
+    "A350",
+    "A350-900"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}

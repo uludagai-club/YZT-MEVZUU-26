@@ -1,0 +1,14 @@
+{
+  "model": "Shahed-136 / Geran-2",
+  "kategori": "Kamikaze İHA",
+  "ayirt_edici_ozellikler": "Delta/üçgen kanat, arkada itici pervane, kanat ucu dikey kanatçıklar",
+  "ulke": "İran",
+  "uretici": "HESA",
+  "rol": "Gezinen Mühimmat (kamikaze)",
+  "alternatif_adlar": [
+    "Geran-2",
+    "Shahed 136"
+  ],
+  "motor_sayisi": 1,
+  "silahli": true
+}

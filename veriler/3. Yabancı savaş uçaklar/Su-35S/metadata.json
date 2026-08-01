@@ -1,0 +1,14 @@
+{
+  "model": "Sukhoi Su-35S",
+  "kategori": "Savaş Uçağı",
+  "ayirt_edici_ozellikler": "Su-27 türevi, itki vektörlü, kanardsız, güçlü motorlar",
+  "ulke": "Rusya",
+  "uretici": "Sukhoi",
+  "rol": "Üstün Avcı",
+  "alternatif_adlar": [
+    "Flanker-E",
+    "Su-35"
+  ],
+  "motor_sayisi": 2,
+  "silahli": true
+}

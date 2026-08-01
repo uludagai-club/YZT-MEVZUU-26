@@ -1,0 +1,13 @@
+{
+  "model": "Boeing 777",
+  "kategori": "Yolcu Uçağı",
+  "ayirt_edici_ozellikler": "İki motor, büyük gövde, 6 tekerli ana iniş takımı",
+  "ulke": "ABD",
+  "uretici": "Boeing",
+  "rol": "Geniş gövde yolcu uçağı",
+  "alternatif_adlar": [
+    "Triple Seven"
+  ],
+  "motor_sayisi": 2,
+  "silahli": false
+}
