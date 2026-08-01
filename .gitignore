@@ -12,3 +12,7 @@ venv/
 
 # HF model önbelleği (varsa yerelde)
 .cache/
+
+# Editör/araç yapılandırması
+.claude/
+.vscode/

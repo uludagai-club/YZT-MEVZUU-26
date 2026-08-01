@@ -22,7 +22,7 @@ crop       SigLIP2 → Qdrant → top-k
 `veriler/<kategori>/<model>/` taranır; her modelin `metadata.json`'u okunur. Her
 referans görselden **augmentation** ile varyasyon üretilir (döndürme, ölçek, blur,
 **perspektif eğim**) ve hepsi Qdrant'a yazılır → tek fotoğraftan çok açı.
-**67 model, 586 görsel → 3516 vektör.**
+**95 model, 2809 görsel → 16854 vektör.**
 
 ## Güven kapısı
 

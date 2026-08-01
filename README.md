@@ -29,7 +29,7 @@ ve ~100× yavaştı. Retrieval-only hem daha isabetli hem çok daha hızlı.
 
 ## Doğruluk
 
-Leave-one-out (67 model, 586 sorgu): **top-1 %87.9 · top-3 %97.6** (perspektif
+Leave-one-out (**95 model, 2809 sorgu**): **top-1 %90.5 · top-3 %98.0** (perspektif
 augmentation açık). SigLIP2-so400m, ölçtüğümüz 11 encoder içinde en iyisi —
 kontrastif modeller self-supervised DINOv2'yi açık ara geçti.
 
@@ -76,9 +76,15 @@ Web arayüzü: fotoğraf yükle → **Tanı**. *Benchmark Çalıştır* doğrulu
 }
 ```
 
-Şu an **67 model, 586 görsel** → augmentation ile **3516 vektör**. `ulke`/`rol`
+Şu an **95 model, 2809 görsel** → augmentation ile **16854 vektör**. `ulke`/`rol`
 sonuç kartında gösterilir ve **arayüzden filtrelenebilir**; `alternatif_adlar`
 kopya modelleri tespit etmeye yarar (ör. Kaan = TF-X = MMU).
+
+> **Veri kaynakları:** yerli modeller ve askeri sınıflar tez-set (Kaggle) ve
+> FGVC-Aircraft'tan; sivil yolcu uçakları FGVC-Aircraft'tan; birkaç eksik model
+> Wikimedia Commons'tan (klasöründe `kaynak_atif.json` ile **atıf/lisans** kaydı)
+> derlendi. Bazı klasörler yalnızca `metadata.json` içeren **iskelet**tir (foto
+> eklenince otomatik indekslenir).
 
 > **Üstten referans (asıl isabet kazancı):** sorgu havadan, referanslar çoğu
 > yandan. Bir modele **üstten fotoğraf** eklemek = klasörüne koy + `python -m vrag
