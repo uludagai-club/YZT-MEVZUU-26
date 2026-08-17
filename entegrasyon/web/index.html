@@ -118,9 +118,11 @@ async function oturumBaslat() {
     });
     const veri = await res.json();
     if (res.ok && veri.ok) {
-      mesajGoster("Başlatıldı: " + veri.kaynak, "ok");
+      mesajGoster("Başlatıldı. Modeller ilk kez yükleniyor — video birkaç saniye içinde başlar…", "ok");
       // Video akışını sıfırdan bağla (yeni oturumun ilk karesini yakalasın).
       const img = document.getElementById("video");
+      // Bağlantı koparsa (nadir) otomatik yeniden bağlan — akış boş kalmasın.
+      img.onerror = () => { setTimeout(() => { img.src = "/video?_=" + Date.now(); }, 1500); };
       img.src = "/video?_=" + Date.now();
     } else {
       mesajGoster("Hata: " + (veri.hata || JSON.stringify(veri)), "hata");
@@ -223,7 +225,8 @@ function vragBlok(h) {
            onerror="this.style.visibility='hidden'">
       <div class="vrag-detay">
         <div class="vrag-model">${esc(h.model)} <span style="color:#8b949e;font-weight:400">(${skor})</span></div>
-        <div class="satir"><span class="k">Ülke</span><span class="v">${esc(h.ulke || "Bilinmiyor")}</span></div>
+        <div class="satir"><span class="k">Menşei</span><span class="v">${esc(h.mensei || h.ulke || "Bilinmiyor")}</span></div>
+        <div class="satir"><span class="k">Sahiplik</span><span class="v" style="color:${h.sahiplik==='Türkiye'?'#3fb950':(h.sahiplik==='Yabancı'?'#f85149':'#8b949e')};font-weight:600">${esc(h.sahiplik || "Bilinmiyor")}</span></div>
         <div class="satir"><span class="k">Üretici</span><span class="v">${esc(h.uretici || "Bilinmiyor")}</span></div>
         <div class="satir"><span class="k">Rol</span><span class="v">${esc(h.rol || "Bilinmiyor")}</span></div>
         ${adaylar}
@@ -252,7 +255,6 @@ function vlmBlok(h) {
       </span>
     </div>
     <div class="satir"><span class="k">Tahmin</span><span class="v">${esc(v.gercek_tahmin || "-")}${v.hedef_modeli_tutarlilik ? ` <span class="sure-etiketi">(tutarlılık: ${esc(v.hedef_modeli_tutarlilik)})</span>` : ""}</span></div>
-    ${v.guvenilen_kaynak ? `<div class="satir"><span class="k">Güvenilen Kaynak</span><span class="v"><span class="sure-etiketi">${esc(v.guvenilen_kaynak)}</span></span></div>` : ""}
     <div class="satir"><span class="k">Araç Sınıfı</span><span class="v">${esc(v.arac_sinifi || "-")}</span></div>
     <div class="satir"><span class="k">Ülke Orijini</span><span class="v">${esc(v.ulke_orjini || "Bilinmiyor")}</span></div>
     <div class="satir"><span class="k">Doğrulama</span><span class="v">${esc(v.dogrulama || "-")}</span></div>

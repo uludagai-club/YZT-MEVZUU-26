@@ -17,7 +17,7 @@ ByteTrack ile Takip                                (src/tracking/tracker.py)
      ↓
 Hedefin Kırpılması (Crop)
      ↓
-Model Tanıma (VRAG) + Görsel Doğrulama (VLM)       (src/vrag/, src/vlm/ — SigLIP2+Qdrant / Ollama)
+Model Tanıma (VRAG) + Görsel Doğrulama (VLM)       (src/vrag/, src/vlm/ — SigLIP2+Qdrant / vLLM:8002)
      ↓
 Karar Destek (LLM — risk + Türkçe rapor)           (LLM/ — ayrı FastAPI servisi)
      ↓
@@ -43,10 +43,17 @@ Operatör
 
 ## Ön Koşullar (her iki platform için)
 
-- **[Ollama](https://ollama.com)** kurulu ve çalışıyor olmalı, şu modeller çekili olmalı:
+- **VLM (görsel istihbarat/doğrulama) artık vLLM'de çalışır, Ollama'da değil.**
+  Kurulum ve kullanım: **[VLLM_KULLANIM.md](VLLM_KULLANIM.md)**
+  ```bash
+  cd vllm_servis && uv venv --python 3.12 && uv pip install vllm && cd ..
   ```
-  ollama pull qwen2.5vl:7b   # VLM — görsel istihbarat/doğrulama
-  ollama pull llama3.2:1b    # LLM karar destek — Türkçe rapor üretimi
+  Model `cyankiwi/Qwen3-VL-2B-Instruct-AWQ-4bit`, port 8002, OpenAI-uyumlu.
+  `./Sistemi_Baslat.sh` bunu kendisi başlatır.
+
+- **[Ollama](https://ollama.com)** hâlâ gerekli — ama yalnızca **LLM** için:
+  ```
+  ollama pull llama3.2:1b    # LLM karar destek — Türkçe rapor üretimi (CPU'da çalışır)
   ```
 - Python'un kendisini elle kurmanıza gerek yok — aşağıdaki `uv sync` adımı, projenin istediği **Python 3.11**'i sizin için otomatik indirip kuruyor.
 - İlk çalıştırmada **internet gerekir** — VRAG'ın görsel gömme modeli (`google/siglip2-so400m-patch14-384`) Hugging Face'ten otomatik indirilir (~3-4 GB, bir kerelik). Sonrasında sistem tamamen yerel/offline çalışır.
@@ -153,14 +160,6 @@ Script **güvenli şekilde senkronize eder**: `veriler/`'in tamamını her sefer
 
 ⚠️ İndeksleme sırasında backend'in **kapalı olması gerekir** (ikisi aynı Qdrant veritabanı dosyasını kilitler — aynı anda açık olamazlar).
 
-⚠️ `--img_dir` **mutlaka belirtin** (varsayılan `data/knowledge_base`'dir, `veriler/` değil) — yanlışlıkla varsayılanla çalıştırmak, script'in "diskte artık yok" sanıp `veriler/`'deki tüm mevcut kayıtları indeksten **silmesine** yol açar.
-
-### Güven Göstergeleri
-
-- **Düşük güven ⚠️ işareti:** VRAG'ın en iyi eşleşmesi ya `VRAG_MIN_SCORE` (0.65) altındaysa ya da onu ondan **farklı bir modelden** ayıran fark belirsizse (`VRAG_MARGIN_ESIGI`, 0.015), sonuç yine gösterilir ama bu etiketle işaretlenir — sistem "eminim" demek yerine belirsizliğini dürüstçe bildirir.
-- **Zamansal oylama:** VRAG'ın bağımsız canlı araması track başına ~saniyede bir çalışır; tek bir karenin sonucu titreyebileceği için (aynı hedef için art arda farklı model önerileri), son `VRAG_VOTE_WINDOW` (5) aramanın en sık tekrar eden modeli gösterilir.
-- **VLM debug kolaj kaydı** (`src/config.py: VLM_DEBUG_SAVE_IMAGES`) varsayılan olarak **kapalı** — üretimde gereksiz CPU/disk işini önler. VLM'e giden görselleri manuel incelemek isterseniz `True` yapıp `output/debug_vlm/`'e bakabilirsiniz.
-
 ## Sık Karşılaşılan Sorunlar
 
 **"Storage folder ... already accessed by another instance" hatası:** Backend hâlâ açık, önce onu durdurun (`Ctrl+C` veya süreci `kill` edin), sonra ingest'i çalıştırın.
@@ -169,9 +168,9 @@ Script **güvenli şekilde senkronize eder**: `veriler/`'in tamamını her sefer
 
 **Farklı çözünürlüklü bir videoya geçince çöküyor:** Bu sorun çözüldü — her yeni oturumda tracker + kamera hareketi kompanzasyonu otomatik sıfırlanıyor. Hâlâ oluyorsa güncel kodda olduğunuzdan emin olun.
 
-**Hepsi birlikte (YOLO+VRAG+VLM+LLM) çalışınca VLM/Ollama yanıt vermiyor / donanım yetmiyor gibi görünüyor:** VRAM tıkanıklığı — VRAG bilinçli olarak CPU'da çalışacak şekilde ayarlı (`src/config.py: VRAG_DEVICE = "cpu"`), bunu değiştirmeyin. VRAG ve VLM artık **ayrı kilitlere** sahip (`pipeline.py: self._vrag_gate`, `self._vlm_gate`) — VLM'in Ollama çağrısı (120 saniyeye kadar sürebilir) sırasında VRAG'ın kendi bağımsız aramaları artık bloklanmıyor; eskiden tek bir ortak kilit (`_ai_gate`) ikisini birden sıraya alıyordu ve VLM meşgulken VRAG tamamen donabiliyordu.
+**Hepsi birlikte (YOLO+VRAG+VLM+LLM) çalışınca VLM yanıt vermiyor / donanım yetmiyor gibi görünüyor:** VRAM tıkanıklığı. VRAG artık **GPU'da** çalışıyor (`src/config.py: VRAG_DEVICE = "cuda:0"`) — eskiden CPU'daydı ama worker thread'inde BLAS deadlock'una giriyordu. 8 GB'da bütçe: vLLM ~3.8 GB + backend ~2.7 GB. Ayarlama için bkz. [VLLM_KULLANIM.md](VLLM_KULLANIM.md#vram-bütçesi-8-gbda-sıkı). Ayrıca VRAG ve VLM çağrıları aynı anda GPU/Ollama'ya düşmesin diye sıraya alınıyor (`pipeline.py: self._ai_gate`).
 
-**Ollama modelleri VRAM'e sığmıyor:** `src/config.py`'de `VLM_MODEL_NAME`'i daha küçük bir modelle değiştirebilirsiniz (örn. `minicpm-v4.6:1b`), doğruluktan biraz ödün verip VRAM kazanırsınız.
+**VLM VRAM'e sığmıyor:** vLLM Ollama'dan farklı olarak CPU'ya **taşamaz** — sığmazsa doğrudan OOM verir. `VLLM_GPU_UTIL` ile bütçeyi ayarlayın (bkz. [VLLM_KULLANIM.md](VLLM_KULLANIM.md)).
 
 ## Lisans
 

@@ -188,12 +188,15 @@ class Track:
         if old.vlm_class is not None:
             self.vlm_class = old.vlm_class
 
-        # BUG-FIX (KRİTİK — birleşimde sonuç kayboluyordu): vlm_done yukarıda
-        # taşınıyordu ama vlm_result/llm_result/vrag_matches HİÇ taşınmıyordu.
-        # Sonuç: okluzyon sonrası aynı ID'ye birleşen bir track, vlm_done=True
-        # (yeni VLM çağrısını engelliyor) ama vlm_result=None (LLM tetikleme
-        # kapısı "vlm_done and vlm_result" hiç açılmıyor) durumuna düşüyor —
-        # o track için bir daha asla VLM/LLM sonucu üretilemiyordu.
+        # BUG-FIX (LLM hic tetiklenmiyordu): birlestirmede vlm_done devrediliyor
+        # ama vlm_result DEVREDILMIYORDU. Sonuc kalici kilitlenme:
+        #   - LLM kapisi  `if vlm_done and vlm_result`  -> vlm_result None -> kapali
+        #   - VLM kapisi  `not vlm_done`                -> True -> kapali
+        # yani track bir kez re-ID ile birlesince vlm_result bir daha hic dolmuyor
+        # ve o track icin LLM imkansiz hale geliyordu. Ilgili LLM alanlari da
+        # (llm_result / hash / querying) tasinmali ki karar kaybolmasin ve ayni
+        # VLM sonucu icin iki kez LLM cagrilmasin. vrag_matches ulke ve baglam
+        # yonlendirmesi (context_router) icin gerekli.
         if getattr(old, "vlm_result", None) is not None and getattr(self, "vlm_result", None) is None:
             self.vlm_result = old.vlm_result
         if getattr(old, "llm_result", None) is not None and getattr(self, "llm_result", None) is None:
@@ -203,8 +206,7 @@ class Track:
         if getattr(old, "last_llm_vlm_hash", None) is not None and getattr(self, "last_llm_vlm_hash", None) is None:
             self.last_llm_vlm_hash = old.last_llm_vlm_hash
         self.is_llm_querying = getattr(self, "is_llm_querying", False) or getattr(old, "is_llm_querying", False)
-
-
+            
         self._ar_history = (old._ar_history + self._ar_history)[-15:]
         self._type_label_history = (
             getattr(old, "_type_label_history", []) + self._type_label_history
@@ -841,7 +843,7 @@ class Track:
         # BUG-FIX: Sentetik grafikler (beyaz arkaplan Ã¼stÃ¼ne siyah yazÄ±lar vb.)
         # aÅŸÄ±rÄ± yÃ¼ksek (>2000) Laplacian verir ve gerÃ§ek uÃ§aklarÄ±n Ã¶nÃ¼ne geÃ§er.
         # Laplacian (keskinlik) skoru 800.0 ile sÄ±nÄ±rlandÄ±.
-        lap_var = float(cv2.Laplacian(gray, cv2.CV_32F).var())  # CV_64F yerine CV_32F: aynı sonuç, daha az bellek/işlem
+        lap_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
         lap_var_clipped = min(800.0, lap_var)
 
         # BUG-FIX: GÃ¶kyÃ¼zÃ¼nde net bir silÃ¼et olsa bile, arkaplan Ã§ok homojen olduÄŸu iÃ§in

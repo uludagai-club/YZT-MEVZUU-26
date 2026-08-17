@@ -23,19 +23,19 @@ DEBUG_VLM_DIR.mkdir(parents=True, exist_ok=True)
 # Model/adres/zamanlama config.py'den okunur; config.py yoksa önceki sabit varsayılanlara düşer.
 try:
     from src.config import (
-        VLM_MODEL_NAME, VLM_API_URL, VLM_BACKEND, VLM_ENGINE_MIN_CALL_INTERVAL_S,
-        VLM_VOTE_WINDOW, VLM_NUM_PREDICT, VLM_TIMEOUT_S, VRAG_ENABLED,
-        VLM_DEBUG_SAVE_IMAGES
+        VLM_MODEL_NAME, VLM_API_URL, VLM_ENGINE_MIN_CALL_INTERVAL_S,
+        VLM_VOTE_WINDOW, VLM_NUM_PREDICT, VLM_NUM_CTX, VLM_IMG_MAX_SIZE,
+        VLM_TIMEOUT_S, VRAG_ENABLED
     )
 except ImportError:
     VLM_MODEL_NAME = "gemma4:12b"
     VLM_API_URL = "http://localhost:11434/api/generate"
-    VLM_BACKEND = "ollama"
     VLM_ENGINE_MIN_CALL_INTERVAL_S = 3.0
     VLM_VOTE_WINDOW = 5
-    VLM_NUM_PREDICT = 2048
+    VLM_NUM_PREDICT = 256
+    VLM_NUM_CTX = 512
+    VLM_IMG_MAX_SIZE = 384
     VLM_TIMEOUT_S = 120.0
-    VLM_DEBUG_SAVE_IMAGES = False
 
 # Kolaj parametreleri
 try:
@@ -47,54 +47,11 @@ except ImportError:
 
 from .prompts import CROSS_CHECK_KEYWORDS, generate_vlm_prompt
 
-
-def _build_vrag_context(matches: list) -> str:
-    """VRAG eşleşmelerinden VLM'e verilecek bağlam metnini oluşturur.
-
-    BUG-FIX (körü körüne güven): Eskiden burada "%80 üzeriyse BU KESİN BİR
-    EŞLEŞMEDİR, DOĞRUDAN kullan" talimatı vardı — VLM'in VRAG yanlış olsa bile
-    onu papağan gibi tekrarlamasına yol açıyordu (F-16-hep-çıkma hatası).
-    Artık kesin/körü körüne güven kararı KOD seviyesinde, deterministik olarak
-    veriliyor (pipeline.py: VRAG_GUVEN_ESIGI, >=%90 iken VRAG'ın cevabı zaten
-    doğrudan nihai sonuca yazılıyor — prompt'un bunu ayrıca zorlamasına gerek
-    yok). Bu metnin görevi SADECE %90 altındaki durumda VLM'e VRAG'ı bir DESTEK/
-    ipucu olarak sunmak — VLM kendi gözlemine dayanarak nihai kararı kendisi
-    verir, VRAG'ı görmezden gelmez ama ona da dikte edilmiş gibi davranmaz.
-    """
-    if not matches:
-        return ""
-    lines = [
-        "GÖRSEL HAFIZA (VRAG) EŞLEŞMELERİ:",
-        "Veritabanımızdaki bilinen hedeflerle yapılan vektörel karşılaştırma sonuçları "
-        "(bir ipucu/destektir, kesin doğru olmak zorunda değil):",
-    ]
-    for i, m in enumerate(matches, 1):
-        belirsiz_etiketi = " [belirsiz eşleşme]" if m.get("dusuk_guven") else ""
-        lines.append(
-            f"- {i}. Model: {m['model']} (Sınıf: {m['class']}, Ülke: {m.get('ulke', 'Bilinmiyor')}, "
-            f"Benzerlik: %{int(m['score']*100)}){belirsiz_etiketi}"
-        )
-    lines.append(
-        "DEĞERLENDİRME REHBERİ: Bu eşleşmeleri kendi görsel analizini destekleyecek bir "
-        "ipucu olarak kullan. Gördüğün silüet/şekil bunlarla uyuşuyorsa ve '[belirsiz "
-        "eşleşme]' işareti yoksa, VRAG'ın verdiği Model/Ülke bilgisini değerlendirmene "
-        "dahil edebilirsin. Ama gördüğün görsel VRAG'ın dediğinden belirgin şekilde "
-        "farklıysa ya da eşleşme '[belirsiz eşleşme]' işaretliyse, VRAG'a KÖRÜ KÖRÜNE "
-        "GÜVENME — kendi gözlemine dayanarak NİHAİ KARARI SEN VER; gerekirse "
-        "'hedef_modeli': 'Bilinmiyor' de. Yüksek benzerlikli, çok güvenilir eşleşmeler "
-        "zaten ayrıca değerlendirilip gerektiğinde nihai sonuca otomatik yansıtılıyor — "
-        "senin görevin burada kendi bağımsız gözlemini vermek."
-    )
-    return "\n".join(lines) + "\n"
-
-
 class VLMEngine:
     def __init__(self, model_name: str = VLM_MODEL_NAME, api_url: str = VLM_API_URL,
-                 min_recall_interval_s: float = VLM_ENGINE_MIN_CALL_INTERVAL_S, vote_window: int = VLM_VOTE_WINDOW,
-                 backend: str = VLM_BACKEND):
+                 min_recall_interval_s: float = VLM_ENGINE_MIN_CALL_INTERVAL_S, vote_window: int = VLM_VOTE_WINDOW):
         self.model_name = model_name
         self.api_url = api_url
-        self.backend = backend  # "ollama" | "vllm" — istek/URL şekli buna göre dallanır
 
         # --- Aynı track_id için gereksiz tekrar çağrı koruması ---
         # NEDEN: pipeline.py'de VLM'in track başına tek sefer çalışması
@@ -241,6 +198,68 @@ class VLMEngine:
             bottom_row = _add_border_h(bl, br)
             return _add_border_v(top_row, bottom_row)
 
+    def _vrag_context_olustur(self, matches: list[dict]) -> str:
+        """VRAG eşleşmelerini VLM prompt'una eklenecek bağlam metnine çevirir.
+
+        Model adı + MENŞEİ (köken/üretici ülke) verilir. Talimat dengeli:
+        VRAG güçlü bir ön-bilgidir, ciddiye alınmalı ve başlangıç noktası olarak
+        kullanılmalı; ama körü körüne kabul edilmemeli — görsel siluet açıkça
+        çelişiyorsa VLM kendi gözlemine güvenip düzeltebilir. (Eski "mutlaka
+        VRAG'a uy" talimatı VRAG'ın yanlışlarını VLM'e de bulaştırıyordu.)
+        """
+        ctx = ("GÖRSEL HAFIZA (VRAG) EŞLEŞMELERİ:\n"
+               "Veritabanımızdaki bilinen hedeflerle vektörel karşılaştırma sonuçları:\n")
+        for i, m in enumerate(matches, 1):
+            mensei = m.get("ulke", "Bilinmiyor")
+            # "benzerlik" = ham kosinus. Eskiden m["score"] (oy terimiyle sismis
+            # birlesik siralama metrigi) gosteriliyordu -> ham 0.93 iken VLM'e
+            # "%99" gidiyor, VLM de yanlis kimligi onayliyordu.
+            gosterilecek = m.get("benzerlik", m.get("score", 0.0))
+            ctx += (f"- {i}. Model: {m['model']} "
+                    f"(Sınıf: {m.get('class', 'Bilinmiyor')}, "
+                    f"Menşei: {mensei}, "
+                    f"Benzerlik: %{int(gosterilecek*100)})\n")
+        if matches and matches[0].get("dusuk_guven"):
+            # Adaylar birbirine cok yakin ya da kirpinti kucuk: retrieval bu
+            # karede ayirt edemiyor. VLM'in korukorune onaylamamasi icin bunu
+            # acikca sÃ¶yle (olcum: bu durumda top-1 dogrulugu ~%5).
+            ctx += (
+                "!! DİKKAT — VRAG BU KARELERDE KARARSIZ: adaylar arasındaki fark "
+                "çok küçük (ya da hedef kırpıntısı kimlik için fazla küçük). "
+                "Bu listeyi KESİN KİMLİK olarak alma; yalnızca olasılık listesi "
+                "say. Kararını ağırlıklı olarak KENDİ görsel gözlemine dayandır, "
+                "emin değilsen 'hedef_modeli' alanını 'Bilinmiyor' bırak.\n"
+            )
+        # BUG-FIX: "%85 ve uzeri ciddiye al" maddesi, VRAG kararsizken eklenen
+        # belirsizlik uyarisiyla CELISIYORDU ve onu etkisiz birakiyordu. Olculen
+        # ornek: VLM "goruntude bir F-35 turunde gorunen..." diye DOGRU gozlem
+        # yapip, hemen ardindan "%85 uzeri olup kesin istihbarat kabul edilir"
+        # diyerek kendi dogru gozleminden vazgecti. VRAG emin oldugunda otoritesi
+        # aynen korunuyor; yalnizca KARARSIZ oldugunda o cumle hic gonderilmiyor.
+        if matches and matches[0].get("dusuk_guven"):
+            ctx += (
+                "TALİMAT: VRAG bu karede KARARSIZ olduğu için yukarıdaki liste "
+                "yalnızca OLASILIK listesidir — yüzdelere dayanarak kesin kimlik "
+                "verme. Kararını KENDİ görsel gözlemine dayandır: siluet, kanat "
+                "planformu, kuyruk sayısı/açısı, kokpit var/yok, motor yerleşimi. "
+                "Gözlemin listedeki adaylardan biriyle net örtüşüyorsa onu seç; "
+                "örtüşmüyorsa listeyi YOKSAY. Emin değilsen 'hedef_modeli' alanını "
+                "'Bilinmiyor' bırak — yanlış kesinlik, boş cevaptan daha zararlıdır. "
+                "'ulke_orjini' alanını da yalnızca modelden emin olduğunda doldur.\n"
+            )
+        else:
+            ctx += (
+                "TALİMAT: Bu VRAG eşleşmeleri GÜÇLÜ BİR ÖN-BİLGİDİR — özellikle %85 ve "
+                "üzeri benzerlikte ciddiye al ve model + menşei için başlangıç noktası "
+                "olarak KULLAN. Ancak körü körüne kabul etme: kendi görsel incelemeni de "
+                "yap. Gördüğün siluet VRAG'ın söylediğiyle AÇIKÇA çelişiyorsa (örn. VRAG "
+                "'jet uçağı' diyor ama sen net biçimde pervaneli/döner-kanat görüyorsan) "
+                "kendi gözlemine güven ve düzelt. Nihai kararı VRAG ön-bilgisi ile kendi "
+                "görsel gözlemini BİRLEŞTİREREK ver; menşei bilgisini de bu mantıkla "
+                "'ulke_orjini' alanına yansıt.\n"
+            )
+        return ctx
+
     # ------------------------------------------------------------------
     # 3. ANALİZ FONKSİYONU
     # ------------------------------------------------------------------
@@ -273,16 +292,9 @@ class VLMEngine:
 
         grid_img = self.build_visual_grid(crops)
 
-        # --- Kolaj'ı diske kaydet (yalnızca VLM_DEBUG_SAVE_IMAGES=True iken) ---
+        # --- Kolaj'ı diske kaydet (her zaman, sessizce değil) ---
         # Kaydedilen dosyayı vlm_manual_test.py ile açıp test edebilirsin:
         #   python vlm_manual_test.py pipeline_output/debug_vlm/track_X_....jpg
-        #
-        # BUG-FIX (FPS düşüşü): Bu blok eskiden HER VLM çağrısında koşulsuz
-        # çalışıyordu — cv2.imwrite + etiket çizimi senkron CPU/disk işi, arka
-        # plan thread'inde olsa bile Python'ın GIL'i yüzünden ana video işleme
-        # döngüsüyle çekişip VLM tetiklendiği an FPS'in ani düşmesine yol
-        # açıyordu. Artık yalnızca manuel debug için açıkça istendiğinde
-        # (config.py: VLM_DEBUG_SAVE_IMAGES=True) çalışıyor.
         #
         # BUG-FIX (etiketsiz fotoğraf): Bu görsel doğrudan ham crop'tan
         # oluşuyordu — canlı videodaki HUD (ID/sınıf/güven kutusu) sadece
@@ -290,50 +302,66 @@ class VLMEngine:
         # ulaşmıyordu. Sonuç: diske kaydedilen HER track_X.jpg etiketsizdi.
         # VLM'e giden temiz görüntüyü (grid_img) BOZMADAN, sadece diske
         # yazılan kopyanın üstüne bilgi şeridi basıyoruz.
-        if VLM_DEBUG_SAVE_IMAGES:
-            try:
-                DEBUG_VLM_DIR.mkdir(parents=True, exist_ok=True)
-                fname = f"track_{track_id}_{int(time.time())}.jpg"
-                save_path = DEBUG_VLM_DIR / fname
+        try:
+            DEBUG_VLM_DIR.mkdir(parents=True, exist_ok=True)
+            fname = f"track_{track_id}_{int(time.time())}.jpg"
+            save_path = DEBUG_VLM_DIR / fname
 
-                labeled_img = self._label_debug_image(
-                    grid_img, track_id=track_id, yolo_class=yolo_class, yolo_conf=yolo_conf,
-                    speed=speed, threat=threat,
-                )
+            labeled_img = self._label_debug_image(
+                grid_img, track_id=track_id, yolo_class=yolo_class, yolo_conf=yolo_conf,
+                speed=speed, threat=threat,
+            )
 
-                ok = cv2.imwrite(str(save_path), labeled_img)
-                if ok:
-                    log.info(f"[VLM-KOLAJ] Diske kaydedildi → {save_path}")
-                else:
-                    log.warning(f"[VLM-KOLAJ] imwrite başarısız → {save_path} (cv2 hata kodu)")
-            except Exception as e:
-                log.warning(f"[VLM-KOLAJ] Kayıt hatası: {e}")
+            ok = cv2.imwrite(str(save_path), labeled_img)
+            if ok:
+                log.info(f"[VLM-KOLAJ] Diske kaydedildi → {save_path}")
+            else:
+                log.warning(f"[VLM-KOLAJ] imwrite başarısız → {save_path} (cv2 hata kodu)")
+        except Exception as e:
+            log.warning(f"[VLM-KOLAJ] Kayıt hatası: {e}")
 
 
-        _, buffer = cv2.imencode('.jpg', grid_img, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        # VLM'e giden görseli küçült: en uzun kenar VLM_IMG_MAX_SIZE (384) olsun.
+        # Modelin işleyeceği piksel sayısı düşünce çıkarım katlanarak hızlanır.
+        # (Debug kaydı yukarıda tam çözünürlükle yapıldı; burada yalnız gönderim
+        # kopyası küçültülür.)
+        gh, gw = grid_img.shape[:2]
+        if max(gh, gw) > VLM_IMG_MAX_SIZE:
+            olcek = VLM_IMG_MAX_SIZE / max(gh, gw)
+            grid_gonder = cv2.resize(
+                grid_img, (max(1, int(gw * olcek)), max(1, int(gh * olcek))),
+                interpolation=cv2.INTER_AREA
+            )
+        else:
+            grid_gonder = grid_img
+
+        _, buffer = cv2.imencode('.jpg', grid_gonder, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
         img_b64 = base64.b64encode(buffer).decode('utf-8')
 
         # VRAG Sorgusu (Eğer aktifse en iyi kırpılmış görüntüyü veritabanında ara)
         vrag_context = ""
         if vrag_matches:
-            matches = vrag_matches
             log.info(f"[VRAG] ⚡ Mevcut Eşleşmeler Kullanıldı: " +
-                     ", ".join([f"{m['model']} (%{int(m['score']*100)})" for m in matches]))
-            vrag_context = _build_vrag_context(matches)
+                     ", ".join([f"{m['model']} (%{int(m.get('benzerlik', m['score'])*100)})" for m in vrag_matches]))
+            vrag_context = self._vrag_context_olustur(vrag_matches)
         elif self.vrag_engine and crops:
             matches = self.vrag_engine.search_similar_vehicle(crops[0])
             if matches:
                 log.info(f"[VRAG] ⚡ Yeni Eşleşme Bulundu: " +
-                         ", ".join([f"{m['model']} (%{int(m['score']*100)})" for m in matches]))
-                vrag_context = _build_vrag_context(matches)
+                         ", ".join([f"{m['model']} (%{int(m.get('benzerlik', m['score'])*100)})" for m in matches]))
+                vrag_context = self._vrag_context_olustur(matches)
 
         prompt = generate_vlm_prompt(speed, zigzag, threat, yolo_class, yolo_conf, n_crops=len(crops), vrag_context=vrag_context)
 
-        if self.backend == "vllm":
-            # vLLM'in OpenAI-uyumlu /v1/chat/completions'ı — görsel içerik ayrı bir
-            # "image_url" (data URI) parçası olarak content listesine eklenir, Ollama'daki
-            # gibi mesaja düz "images" alanı eklenmez.
-            call_url = self.api_url
+        # Sunucu formati URL'den tespit edilir: "/v1/" iceren adres OpenAI-uyumlu
+        # (vLLM), digeri Ollama. Boylece backend degistirmek tek config satiri
+        # (VLM_API_URL + VLM_MODEL_NAME) ve geri donus de ayni sekilde.
+        openai_uyumlu = "/v1/" in self.api_url
+
+        if openai_uyumlu:
+            # vLLM / OpenAI: gorsel data-URI olarak content dizisinde gider,
+            # num_predict yerine max_tokens, format yerine response_format.
+            chat_url = self.api_url
             payload = {
                 "model": self.model_name,
                 "messages": [
@@ -341,10 +369,14 @@ class VLMEngine:
                         "role": "user",
                         "content": [
                             {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"},
+                            },
                         ],
                     }
                 ],
+                "stream": False,
                 "temperature": 0.0,
                 "top_p": 0.9,
                 "max_tokens": VLM_NUM_PREDICT,
@@ -352,7 +384,8 @@ class VLMEngine:
             }
         else:
             # Force chat API endpoint for better instruction following
-            call_url = self.api_url.replace("/api/generate", "/api/chat")
+            chat_url = self.api_url.replace("/api/generate", "/api/chat")
+
             payload = {
                 "model":  self.model_name,
                 "format": "json",
@@ -368,11 +401,12 @@ class VLMEngine:
                     "temperature": 0.0,
                     "top_p":       0.9,
                     "num_predict": VLM_NUM_PREDICT,
+                    "num_ctx":     VLM_NUM_CTX,
                 }
             }
 
         try:
-            response = requests.post(call_url, json=payload, timeout=VLM_TIMEOUT_S)
+            response = requests.post(chat_url, json=payload, timeout=VLM_TIMEOUT_S)
             response.raise_for_status()
             
             resp_json = response.json()
@@ -507,7 +541,7 @@ class VLMEngine:
             return stable
 
         except requests.exceptions.Timeout:
-            log.error(f"[VLM] Track {track_id}: {self.backend} yanıt vermedi ({VLM_TIMEOUT_S:.0f}s timeout)")
+            log.error(f"[VLM] Track {track_id}: Ollama yanıt vermedi ({VLM_TIMEOUT_S:.0f}s timeout)")
             return None
         except Exception as e:
             log.error(f"[VLM] Track {track_id}: API hatası → {e}")

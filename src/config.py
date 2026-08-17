@@ -5,28 +5,35 @@
 # Her parametre tek bir yerde tanÄ±mlanÄ±r.
 # Gruplar: DonanÄ±m â†’ AlgÄ±lama â†’ Takip â†’ Filtreleme â†’ VLM â†’ Ã‡Ä±ktÄ±
 # ============================================================
-import os
 from pathlib import Path
 import torch
 
 # ======================== DONANIM ============================
 DEVICE       = "cuda:0" if torch.cuda.is_available() else "cpu"
-# NOT: MPS (Apple GPU) iki kez denendi — Ollama (VLM/LLM) aynı Metal GPU'yu
-# kullandığı için VLM/LLM çağrısı sırasında YOLO'nun FPS'i 20'den 2'ye kadar
-# düşüyordu (iki süreç arasında GPU kuyruk çakışması, uygulama seviyesinde
-# çözülemedi). CPU'da kararlı ~7 FPS tercih edildi. Alternatif: vLLM/CUDA
-# (Windows) — bkz. VLM_API_URL, orada bu çakışma yaşanmıyor.
-# VRAM tıkanıklığı (YOLO + VRAG + VLM/Ollama + LLM aynı GPU'da yarışıyordu) için
-# VRAG (SigLIP2) kalıcı olarak CPU'ya alındı — GPU'da yalnızca YOLO ve Ollama kalsın.
-VRAG_DEVICE  = "cpu"
+# VRAG (SigLIP2) cihazı. Eskiden VRAM tıkanıklığı için "cpu" idi, ama VRAG bir
+# worker thread'inde (asenkron) çalıştığından torch CPU matris çarpımı (BLAS/MKL)
+# ana thread'in torch işleriyle çakışıp KALICI DEADLOCK'a giriyordu (SigLIP2
+# Linear.forward'da donma → VRAG tek atıştan sonra hiç sonuç vermiyordu; hiçbir
+# CPU-threading ayarı — set_num_threads(1), MKL_THREADING_LAYER=SEQUENTIAL —
+# çözmedi). GPU op'ları bu CPU-threading sorununa tabi değil. LLM (llama3.2:1b)
+# CPU'ya alındığı için VRAM da açıldı → VRAG artık GPU'da çalışıyor (hem deadlock
+# çözülür hem embedding hızlanır). CUDA yoksa CPU'ya düşer.
+VRAG_DEVICE  = "cuda:0" if torch.cuda.is_available() else "cpu"
 MODEL_PATH   = str(Path(__file__).parent.parent / "models" / "best.pt")
-# YOLO fp16 çıkarım: yalnızca CUDA'da anlamlı hız kazandırır (tensor core'lar),
-# CPU'da fp16 desteklenmez/hızlandırmaz — bu yüzden cihaza göre otomatik seçilir,
-# başka bir makinede (RTX vb.) çalıştıranın kod değiştirmesine gerek kalmaz.
-# ultralytics >=8.4: eski half=True kaldırıldı, yerine quantize=16 (fp16) / None (fp32) geldi.
+# YOLO fp16 (yarı hassasiyet) çıkarımı: RTX serisi GPU'larda ~1.5-2x hızlanma,
+# doğruluk kaybı ihmal edilebilir. Yalnızca CUDA'da; CPU'da fp16 desteklenmez.
+# Ultralytics 8.4+ 'half' argümanını kaldırdı; yerine 'quantize' geldi:
+#   16 -> FP16 (eski half=True), None -> FP32 (eski half=False).
 YOLO_QUANTIZE = 16 if "cuda" in DEVICE else None
 
 # ======================== SAHI / SLICER ======================
+# HIZLANDIRMA: İşleme çözünürlüğü tavanı. Kare genişliği bunu aşarsa (ör. 4K
+# 3840px) orantılı olarak küçültülür → SAHI patch sayısı ~kare oranında düşer,
+# FPS ~kare oranında artar (4K→1080p ≈ 4x hız). VLM/VRAG crop'ları zaten 384px'e
+# indiriyor, kimlik kaybı yok; yalnız ÇOK uzak/minik hedeflerde YOLO recall'ı
+# biraz düşebilir. 0 veya çok büyük yaparsan sınır kalkar (4K tam işlenir).
+PROC_MAX_WIDTH  = 1920   # İşlemeden önce kare bu genişliğe indirilir (1080p sınır)
+
 # --- Pass-1: HÄ±zlÄ± Ã¶n tarama ---
 PASS1_SIZE      = 640    # Frame bu boyuta kÃ¼Ã§Ã¼ltÃ¼lÃ¼r
 PASS1_CONF      = 0.08   # Ã‡ok dÃ¼ÅŸÃ¼k: "bir ÅŸey var mÄ±?" kontrolÃ¼
@@ -37,10 +44,9 @@ SLICE_H    = 640         # PatÃ§a yÃ¼ksekliÄŸi
 SLICE_W    = 640         # PatÃ§a geniÅŸliÄŸi
 OVERLAP    = 0.25        # %25 Ã¶rtÃ¼ÅŸme (kenar nesnelerini koru)
 NMS_IOU    = 0.20        # Ã‡akÄ±ÅŸan kutularÄ± agresif birleÅŸtirme eÅŸiÄŸi (0.30'dan 0.20'ye dÃ¼ÅŸÃ¼rÃ¼ldÃ¼)
-# CUDA'lı makinelerde (Windows/Linux + RTX vb.) YOLO aynı GPU'yu VRAG/vLLM ile
-# paylaşabiliyor — batch küçük tutulup VRAM'den yer açılır. Mac'te (CPU) böyle
-# bir paylaşım/çakışma yok, hız payı bol olduğu için daha büyük batch kalabilir.
-BATCH_SIZE = 4 if "cuda" in DEVICE else 8   # GPU batch boyutu (donanıma göre otomatik)
+BATCH_SIZE = 4           # GPU batch boyutu (8->4: vLLM ile ayni 8GB karti paylasirken
+                         # YOLO aktivasyon tepesi SigLIP2 icin yer birakmiyordu. Slicer
+                         # kare basi ~15ms'de bitiyor, hiz payi bol.)
 
 # --- YOLO GÃ¼ven EÅŸikleri ---
 CONFIDENCE          = 0.40   # YakÄ±n (bÃ¼yÃ¼k) hedefler iÃ§in minimum gÃ¼ven
@@ -257,25 +263,30 @@ COLLAGE_BG_COLOR   = (30, 30, 30)  # Siyah deÄŸil koyu gri zemin â€” VLM 
 
 # ======================== VLM ================================
 # dÃ¼ÅŸÃ¼nmeye token hÄ±rcar, JSON Ã§Ä±kmaz.
-# Backend seçimi donanıma göre otomatik: CUDA'lı makinede vLLM (Docker, bkz.
-# docker/docker-compose.yml), Mac/CPU'da Ollama — kimsenin elle kod
-# değiştirmesine gerek kalmaz (YOLO_QUANTIZE/BATCH_SIZE ile aynı desen).
-# Üçü de ortam değişkeniyle ezilebilir — docker-compose'daki "app" servisi
-# VLM_BACKEND/VLM_API_URL'i container-ağı servis adına (ör. "vllm-vlm")
-# göre set eder, kod hiç değişmez.
-VLM_BACKEND                = os.environ.get("VLM_BACKEND") or ("vllm" if "cuda" in DEVICE else "ollama")
-# Ollama yerel tag ("qwen2.5vl:7b") bekler; vLLM HuggingFace repo id + kendi
-# sunucusunun portu bekler. Model/port değişirse docker-compose.yml ile
-# birlikte güncellenmeli.
-VLM_MODEL_NAME             = os.environ.get("VLM_MODEL_NAME") or (
-                               "Qwen/Qwen2.5-VL-7B-Instruct-AWQ" if VLM_BACKEND == "vllm"
-                               else "qwen2.5vl:7b")
-VLM_API_URL                = os.environ.get("VLM_API_URL") or (
-                               "http://localhost:8002/v1/chat/completions" if VLM_BACKEND == "vllm"
-                               else "http://localhost:11434/api/generate")
-VLM_NUM_PREDICT            = 1024   # KÄ±sa ve Ã¶z JSON cevaplarÄ± iÃ§in yeterli
+VLM_MODEL_NAME             = "cyankiwi/Qwen3-VL-2B-Instruct-AWQ-4bit"
+# Ollama yerine vLLM (bkz. VLLM_Baslat.sh). Geri donmek icin bu iki satiri
+# eski hallerine cevirmek yeterli -- engine.py formati URL'den ("/v1/" var mi)
+# otomatik secer. Eski Ollama degerleri:
+#   VLM_MODEL_NAME = "qwen3-vl:4b-instruct"
+#   VLM_API_URL    = "http://localhost:11434/api/generate"
+# 4B degil 2B: 8 GB kartta Python tarafi (YOLO+SigLIP2) 5.2 GB tutuyor,
+# vLLM'e ~2.8 GB kaliyor; 4B AWQ 4.13 GB ile sigmiyor, vLLM CPU'ya tasiyamaz.
+                                             # sığar (CPU-split biter), daha iyi görsel analiz.
+                                             # ÖNEMLİ: "instruct" (düşünmeyen) varyant şart —
+                                             # düz "qwen3-vl:4b" Thinking varyantıdır, tüm
+                                             # num_predict bütçesini düşünmeye harcayıp JSON'ı
+                                             # boş döndürür (content_len=0). Instruct doğrudan JSON verir.
+VLM_API_URL                = "http://127.0.0.1:8002/v1/chat/completions"
+VLM_NUM_PREDICT            = 256    # Kısa/öz JSON cevabı zorla (1024→256: hız + VRAM)
+VLM_NUM_CTX                = 4096   # Ollama bağlam penceresi. Model varsayılanından
+                                    # (çok daha büyük) küçültülünce KV-cache VRAM'i düşer.
+                                    # DİKKAT: prompt + 384px görsel ölçülen ~2005 token
+                                    # tüketiyor; 512/2048 çıktıyı KESİYOR (JSON bozuluyor).
+                                    # 4096 = ~2005 prompt + 256 çıktı + pay → güvenli.
+VLM_IMG_MAX_SIZE           = 384    # VLM'e giden görselin en uzun kenarı bu piksele düşürülür
+                                    # (okunacak piksel azalır → çıkarım katlanarak hızlanır).
 VLM_TIMEOUT_S              = 300.0  # 5 dakika timeout (YavaÅŸ bilgisayarlar iÃ§in artÄ±rÄ±ldÄ±)
-VLM_MIN_RECALL_INTERVAL_S  = 0.7    # [GÃœNCELLENDÄ°] 3.0->0.7: UÃ§ak aniden yakÄ±nlaÅŸÄ±p inanÄ±lmaz net bir kare (Ã¶rnekteki F-4 kuyruÄŸu gibi) verirse 3 saniye bekleme, hemen 0.7 sn iÃ§inde VLM'i tetikle!
+VLM_MIN_RECALL_INTERVAL_S  = 3.0    # HIZLANDIRMA: 0.7→3.0, VLM'in sık tekrarı YOLO ile GPU çekişmesi yaratıp FPS'i yarıya düşürüyordu. [GÃœNCELLENDÄ°] 3.0->0.7: UÃ§ak aniden yakÄ±nlaÅŸÄ±p inanÄ±lmaz net bir kare (Ã¶rnekteki F-4 kuyruÄŸu gibi) verirse 3 saniye bekleme, hemen 0.7 sn iÃ§inde VLM'i tetikle!
 # BUG-FIX: VLM_MIN_RECALL_INTERVAL_S eskiden vlm_engine.py iÃ§inde AYNI ZAMANDA
 # genel spam-koruma cooldown'u olarak da kullanÄ±lÄ±yordu. YukarÄ±daki deÄŸer
 # 3.0'dan 0.7'ye dÃ¼ÅŸÃ¼rÃ¼lÃ¼nce (pipeline.py'deki "sÃ¼per kare" hÄ±zlÄ± yeniden-
@@ -283,8 +294,8 @@ VLM_MIN_RECALL_INTERVAL_S  = 0.7    # [GÃœNCELLENDÄ°] 3.0->0.7: UÃ§ak anid
 # Ã¶nleyen koruma da istemeden 0.7s'e zayÄ±flamÄ±ÅŸ oluyordu. Ä°ki amaÃ§ artÄ±k ayrÄ±
 # sabitlerle yÃ¶netiliyor â€” bu sabit SADECE vlm_engine.py'nin motor-seviyesi
 # spam korumasÄ±nÄ± kontrol eder, pipeline.py'nin recall mantÄ±ÄŸÄ±nÄ± etkilemez.
-VLM_ENGINE_MIN_CALL_INTERVAL_S = 1.5  # BUG-FIX: 3.0 â†’ 1.5 â€” pipeline'Ä±n 0.7s recall mantÄ±ÄŸÄ±yla uyumlu, Ollama spam korumasÄ± yeterli
-VLM_RECALL_IQA_GAIN        = 1.10   # [GÃœNCELLENDÄ°] 1.15->1.10: Yeni fotoÄŸraf %10 daha net/keskin ise hemen VLM'i gÃ¼ncelle.
+VLM_ENGINE_MIN_CALL_INTERVAL_S = 3.0  # HIZLANDIRMA: 1.5→3.0, motor-seviye spam guard, recall ile hizalı. BUG-FIX: 3.0 â†’ 1.5 â€” pipeline'Ä±n 0.7s recall mantÄ±ÄŸÄ±yla uyumlu, Ollama spam korumasÄ± yeterli
+VLM_RECALL_IQA_GAIN        = 1.30   # HIZLANDIRMA: 1.10→1.30, sadece BELİRGİN (%30) daha net kare VLM'i tekrar tetikler; %10'luk marjinal iyileşmeler GPU'yu boşa meşgul ediyordu. [GÃœNCELLENDÄ°] 1.15->1.10: Yeni fotoÄŸraf %10 daha net/keskin ise hemen VLM'i gÃ¼ncelle.
                                      # (eskiden pipeline.py iÃ§inde sabit 1.25 idi â€” biraz sÄ±kÄ±ydÄ±, artÄ±k config'ten yÃ¶netiliyor)
 VLM_VOTE_WINDOW            = 5
 VLM_COOLDOWN_S             = 0.5   # VLM Ã§aÄŸrÄ±larÄ± arasÄ± minimum sÃ¼re
@@ -298,7 +309,7 @@ VLM_CROP_BUFFER_SIZE       = 45
 # KaÃ§ frame gÃ¶rÃ¼ldÃ¼kten sonra kolaj VLM'e gÃ¶nderilsin (Ã§ok kÄ±sa track'leri filtreler)
 # NOT: Bu tek baÅŸÄ±na yeterli deÄŸil â€” bkz. VLM_MIN_CROP_POOL_SIZE. hits sadece
 # "track ne kadar sÃ¼redir yaÅŸÄ±yor"yu Ã¶lÃ§er, buffer'Ä±n gerÃ§ekten dolup dolmadÄ±ÄŸÄ±nÄ± deÄŸil.
-VLM_MIN_HITS_FOR_COLLAGE   = 8
+VLM_MIN_HITS_FOR_COLLAGE   = 5   # HIZLANDIRMA: 8→5, VLM daha erken tetiklenir (sonuç daha çabuk görünür)
 
 # BUG-FIX (en kÃ¶tÃ¼ kare sorunu): Eskiden VLM, hedef daha 8. frame'de (~0.27sn)
 # gÃ¶rÃ¼lÃ¼r gÃ¶rÃ¼lmez tetikleniyordu. O anda _crop_buffer'da genelde 3-6 kare vardÄ±
@@ -312,7 +323,36 @@ VLM_MIN_HITS_FOR_COLLAGE   = 8
 # gÃ¶rÃ¼ntÃ¼ kalitesi sÄ±nÄ±rdayken pratikte hiÃ§ dolmuyordu. 10'a Ã§ekildi â€”
 # hÃ¢lÃ¢ "birkaÃ§ karenin en iyisi" deÄŸil, gerÃ§ek bir zengin havuz, ama
 # artÄ±k ulaÅŸÄ±labilir.
-VLM_MIN_CROP_POOL_SIZE     = 10   # _crop_buffer'da birikmesi gereken min. kaliteli kare
+VLM_MIN_CROP_POOL_SIZE     = 6   # HIZLANDIRMA: 10→6, havuz daha çabuk dolar → VLM erken tetiklenir
+
+VLM_VOTE_WINDOW            = 5
+VLM_COOLDOWN_S             = 0.5   # VLM Ã§aÄŸrÄ±larÄ± arasÄ± minimum sÃ¼re
+VLM_MIN_BBOX_PX            = 15    # Hedefin VLM'e gitmesi iÃ§in en az 15px olmasÄ±nÄ± bekle.
+# ======================== TEHDÄ°T SKORU =======================
+VLM_MIN_CONFIDENCE_FOR_TIP = 40    # GÃ¼ven eÅŸiÄŸi (0-100), altÄ± â†’ tanÄ±msÄ±z
+VLM_MIN_TRACK_CONF         = 0.35  # Track gÃ¼veni bunun altÄ±ndaysa VLM Ã§alÄ±ÅŸmaz
+VLM_CROP_CONTEXT_RATIO     = 0.25  # Prensip 3 (Smart Crop): UÃ§aÄŸÄ±n tamamÄ±nÄ± ve Ã§evresini almak iÃ§in %25 padding
+VLM_CROP_MIN_CONF          = 0.30  # Keyframe tamponuna kabul eÅŸiÄŸi
+# FarklÄ± aÃ§Ä±lardan (dÃ¶nÃ¼ÅŸ, dalÄ±ÅŸ, yan silÃ¼et) en zengin aday havuzunu toplamak iÃ§in geniÅŸ tampon
+VLM_CROP_BUFFER_SIZE       = 45
+# KaÃ§ frame gÃ¶rÃ¼ldÃ¼kten sonra kolaj VLM'e gÃ¶nderilsin (Ã§ok kÄ±sa track'leri filtreler)
+# NOT: Bu tek baÅŸÄ±na yeterli deÄŸil â€” bkz. VLM_MIN_CROP_POOL_SIZE. hits sadece
+# "track ne kadar sÃ¼redir yaÅŸÄ±yor"yu Ã¶lÃ§er, buffer'Ä±n gerÃ§ekten dolup dolmadÄ±ÄŸÄ±nÄ± deÄŸil.
+VLM_MIN_HITS_FOR_COLLAGE   = 5   # HIZLANDIRMA: 8→5, VLM daha erken tetiklenir (sonuç daha çabuk görünür)
+
+# BUG-FIX (en kÃ¶tÃ¼ kare sorunu): Eskiden VLM, hedef daha 8. frame'de (~0.27sn)
+# gÃ¶rÃ¼lÃ¼r gÃ¶rÃ¼lmez tetikleniyordu. O anda _crop_buffer'da genelde 3-6 kare vardÄ±
+# (hedef henÃ¼z uzak/bulanÄ±k/kÃ¶tÃ¼ aÃ§Ä±da). "En iyisini seÃ§" doÄŸru Ã§alÄ±ÅŸÄ±yordu ama
+# Ã§ok kÃ¼Ã§Ã¼k ve kÃ¶tÃ¼ bir havuzun en iyisini seÃ§iyordu. Åimdi VLM, track'in kendi
+# kalite-filtrelenmiÅŸ buffer'Ä± bu kadar kareyle dolana kadar BEKLÄ°YOR â€” bÃ¶ylece
+# hedef ekranda gezinirken (yaklaÅŸma, dÃ¶nÃ¼ÅŸ, yan silÃ¼et) toplanan gerÃ§ekten
+# zengin bir havuzdan seÃ§im yapÄ±lÄ±yor.
+# BUG-FIX (VLM hiÃ§ tetiklenmiyordu): 18, track'ler kÄ±sa Ã¶mÃ¼rlÃ¼/bÃ¶lÃ¼nmÃ¼ÅŸ
+# olduÄŸunda (bkz. slicer.py _dedupe_overlapping_targets dÃ¼zeltmesi) VEYA
+# gÃ¶rÃ¼ntÃ¼ kalitesi sÄ±nÄ±rdayken pratikte hiÃ§ dolmuyordu. 10'a Ã§ekildi â€”
+# hÃ¢lÃ¢ "birkaÃ§ karenin en iyisi" deÄŸil, gerÃ§ek bir zengin havuz, ama
+# artÄ±k ulaÅŸÄ±labilir.
+VLM_MIN_CROP_POOL_SIZE     = 6   # HIZLANDIRMA: 10→6, havuz daha çabuk dolar → VLM erken tetiklenir
 
 # BUG-FIX (Ã§ift tanÄ±m): Bu deÄŸiÅŸken eskiden iki kere tanÄ±mlanÄ±yordu (Ã¶nce 1,
 # sonra buradaki 4 onu eziyordu) â€” Ã§eliÅŸen iki yorum, hangisinin aktif
@@ -336,11 +376,6 @@ ARENA_POLYGON          = []   # [] = tÃ¼m frame arena
 OUTPUT_DIR    = Path(__file__).parent.parent / "output"
 DEBUG_VLM_DIR = OUTPUT_DIR / "debug_vlm"
 DEBUG_RAG_DIR = OUTPUT_DIR / "debug_rag"
-# VLM her cagrida kolaji diske kaydediyordu (cv2.imwrite + etiket cizimi) - bu
-# senkron CPU/disk isi, arka plan thread'inde olsa bile GIL yuzunden ana video
-# donguesunun FPS'ini dusuruyordu (VLM baslarken ani FPS dususu). Uretimde
-# kapali, manuel VLM debug/test yaparken True yapip acilabilir.
-VLM_DEBUG_SAVE_IMAGES = False
 SHOW_WINDOW   = True
 SAVE_VIDEO    = False
 
@@ -350,31 +385,39 @@ VRAG_DB_PATH         = OUTPUT_DIR / "qdrant_db"
 VRAG_COLLECTION_NAME = "uav_knowledge"
 SIGLIP_MODEL_NAME    = "google/siglip2-so400m-patch14-384"
 VRAG_MIN_SCORE       = 0.65  # EÅŸleÅŸme iÃ§in minimum Cosine Similarity
-# Zamansal oylama: VRAG'in bagimsiz canli aramasi track basina saniyede bir
-# calisir, tek karenin sonucu titreyebilir (ayni hedef icin art arda farkli
-# modeller). Son VRAG_VOTE_WINDOW aramanin en sik tekrar eden top-1 modeli
-# gosterilir - VLM tarafindaki TrackVoteAggregator ile ayni mantik.
-VRAG_VOTE_WINDOW     = 5
-
-# --- DENEYSEL: Sirali dongu modu (VRAG -> VLM -> LLM -> dur -> yeni crop -> VRAG...) ---
-# Kullanicinin acikca istedigi bir A/B testi: track basina VRAG/VLM/LLM'in her
-# biri sirayla, birbirini bekleyerek calisir (su anki bagimsiz/paralel tetikleme
-# yerine). Amac: kaynak cekismesini azaltmak ve VRAG'in gosterdigi sonuc ile
-# VLM'in yorumladigi kare arasindaki zaman farkini kapatmak. Bilinen riski: VRAG
-# artik VLM/LLM turu (~20-40sn) boyunca donuk kalir, zamansal oylama penceresi
-# cok yavas dolar, kisa gorunen hedefler tam turu hic tamamlayamayabilir. Kolayca
-# geri alinabilmesi icin tek bir bayrak - False yapmak eski (bagimsiz) davranisa
-# aninda doner.
-SIRALI_DONGU_MODU    = True
-
-# --- DENEYSEL: VRAG skoru esik-ustuyse VLM'e direkt guven ---
-# UYARI: Bu oturumda VRAG'in >= %90 skorla dahi confidently YANLIS oldugu
-# kanitlanmisti (f15.mp4 -> "F-16" %91.7, gercek F-15). Yani bu esik dogrulugu
-# garanti ETMEZ - kullanici bunu bilerek, VRAG/VLM karsilastirmasini gormek
-# icin test etmek istedi. arayuzde "_guvenilen_kaynak" alaniyla hangi yoldan
-# gelindigi gorunur, boylece etkisi izlenebilir.
-VRAG_GUVEN_ESIGI     = 0.90
-
+# GÃ¼ven kapÄ±sÄ±: model-bazÄ± tekilleÅŸtirilmiÅŸ top-1 ile top-2 skoru arasÄ±ndaki
+# fark (margin) bundan kÃ¼Ã§Ã¼kse tahmin "dÃ¼ÅŸÃ¼k gÃ¼ven" iÅŸaretlenir (ilk iki aday
+# neredeyse eÅŸit â†’ model kararsÄ±z). Benchmark: yanlÄ±ÅŸ tahminlerin medyan
+# margini 0.007, doÄŸrularÄ±n 0.057; 0.015 yanlÄ±ÅŸlarÄ±n ~%86'sÄ±nÄ± yakalar.
+VRAG_MARGIN_ESIGI    = 0.030  # 0.015->0.030 ve artik HAM kosinus uzerinden olculuyor
+                              # (eskiden oy terimiyle sismis birlesik skor uzerindeydi ->
+                              # kapi hic acilmiyordu). Olcum: 40 gercek kirpintida ham marj
+                              # medyani 0.018, %90 dilimi 0.031 -> 0.030 esigi 35/40'ini
+                              # "dusuk guven" isaretler. Gercekte 38/40 yanlisti.
+VRAG_MIN_CROP_PX     = 64     # Kirpintinin kisa kenari bunun altindaysa kimlik iddiasi
+                              # dusuk guven sayilir (SigLIP2 girisi 384px; 44px hedef ~9 kat
+                              # buyutulunce ayirt edici detay kalmiyor).
+# ---- VRAG oy-tabanlı sağlam sıralama (ince-ayrım) ----
+# SORUN: SigLIP2 benzer uçaklara (F-16↔F-35, HÜRKUŞ↔HÜRJET) neredeyse aynı
+# skoru veriyor; sadece EN YÜKSEK tek hit'e bakmak, bir modelin şanslı tek
+# referansına kanıp yanlış #1 seçiyordu. ÇÖZÜM: her modeli, birleşik skorla
+# sırala = (en iyi 3 hit'in ORTALAMASI) + VRAG_VOTE_WEIGHT × (ilk-K içindeki
+# OY oranı). Böylece sorgunun TUTARLI olarak en yakın olduğu model öne çıkar
+# (doğru eşleşme, o modelin ~24 referansının çoğuna yakın olur, birine değil).
+# Eğitim/yeniden-indeksleme YOK — tamamen sorgu-tarafı.
+VRAG_VOTE_TOPK       = 20    # Oy sayımı için ilk kaç ham hit'e bakılır
+VRAG_VOTE_WEIGHT     = 0.10  # Oy oranının birleşik skora katkısı (0=sadece benzerlik)
+# ---- VRAG "en iyi an" tetikleme (best-moment) ----
+# VRAG'ı her karede/her sabit periyotta değil, YALNIZCA elverişli bir an
+# yakalandığında sorgular (VLM'in kanıtlanmış kalite-kapısı deseninin hafif
+# versiyonu). Böylece kötü kareden yanlış eşleşme azalır, titreme ve boşa GPU
+# harcaması düşer.
+VRAG_MIN_POOL          = 3     # ilk sorgudan önce _crop_buffer'da birikmesi gereken
+                               # min. kaliteli kare (çok erken/bulanık kareyle sorgulama)
+VRAG_RECALL_IQA_GAIN   = 1.15  # yeniden sorgu: en iyi kare IQA'sı bu kat artınca
+                               # (uçak yan dönüp silüet açılınca gibi) — her periyotta değil
+VRAG_MIN_INTERVAL_S    = 0.5   # iki sorgu arası min süre (titreme/gürültü koruması)
+VRAG_MAX_INTERVAL_S    = 4.0   # kalite platoda kalsa bile en geç bu sürede tazele (sağlamlık)
 # ======================== VRAG VERİ ARTIRMA (AUGMENTATION) ===
 DONME_ACILARI        = (-12, 12)
 OLCEK_FAKTORLERI     = (0.8, 0.5, 0.25)
@@ -385,14 +428,8 @@ PERSPEKTIF_AKTIF     = True
 # Akıllı kare atlama: YOLO çıkarımı bütçeyi aşarsa sonraki kare(ler)de
 # sadece Kalman tahmin kullanılır, YOLO atlanır.
 ADAPTIVE_SKIP_ENABLED   = True
-ADAPTIVE_SKIP_BUDGET_MS = 33    # Frame başına YOLO bütçesi (ms, ~30 FPS hedefine uyumlu). Aşılırsa sonraki frame atlanır
+ADAPTIVE_SKIP_BUDGET_MS = 45    # Frame başına YOLO bütçesi (ms). Aşılırsa sonraki frame atlanır
 FRAME_READ_BUFFER_SIZE  = 4     # Ön-okuma thread tamponu (frame sayısı)
-# İşleme çözünürlüğü tavanı: SAHI'de patch sayısı alanla orantılı (4K → 1080p'de
-# patch sayısı ~4'te bire iner). Kare, pipeline'a girmeden en başta küçültülür —
-# detection/tracking/crop/çizim hepsi aynı (küçültülmüş) uzayda kalır, ayrıca bir
-# koordinat geri-eşlemesi gerekmez. VLM/VRAG kırpıntıları zaten 384px'e indiği için
-# kimlik kaybı olmaz; bedeli çok uzak/minik hedeflerde YOLO recall'ının azıcık düşmesi.
-PROC_MAX_WIDTH          = 1920  # Bu genişlikten büyük kareler bu değere küçültülür (None = kapalı)
 
 # ======================== VLM SAĞLAMLIK ===========================
 # llava-phi3 gibi küçük multimodal modeller format:"json" parametresiyle

@@ -58,3 +58,26 @@ VİDEOLAR/
 # Geçici / ajan klasörleri
 # ============================================================
 .agents/
+
+# ============================================================
+# Ubuntu/vLLM geçişiyle eklenenler
+# ============================================================
+# Test videoları — main yalnız mp4/avi/mkv'yi eliyordu, .webm sızıyordu
+data/videos/
+
+# Çalışma zamanı SQLite (migration'lardan üretilir)
+LLM/data/databases/*.db
+
+# vLLM'in AYRI sanal ortamı (~7.7 GB) — .venv/ deseni zaten yakalar,
+# açıklık olsun diye yazıldı
+vllm_servis/.venv/
+
+# Gizli bilgi — .env.example commit edilir, .env ASLA
+.env
+*.env
+!.env.example
+!*.env.example
+
+# Kazara oluşmuş klasör: bir komut '> /dev/null' yerine '> dev/null'
+# yazdığı için git-lfs hook'ları buraya düşmüş. Gerçek hook'lar .git/hooks'ta.
+dev/null/

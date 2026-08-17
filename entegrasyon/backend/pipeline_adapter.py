@@ -14,6 +14,16 @@ cfg.SHOW_WINDOW = False
 
 from src.core.pipeline import TeknoFestPipeline
 
+# Sahiplik çözücü (VRAG model adı → Türkiye envanteri → menşei/sahiplik).
+# Modül düzeyinde bir kez yüklenir (birkaç küçük JSON, hızlı sözlük araması).
+try:
+    from sahiplik import SahiplikCozucu
+    _sahiplik_cozucu = SahiplikCozucu()
+except Exception as _e:
+    print(f"[ADAPTER] Sahiplik çözücü yüklenemedi: {_e}", flush=True)
+    _sahiplik_cozucu = None
+
+
 class PipelineAdapter:
     def __init__(self, source_fps: float = 25.0):
         print("[ADAPTER] TeknoFestPipeline başlatılıyor...", flush=True)
@@ -50,6 +60,7 @@ class PipelineAdapter:
                 "hits": int(t.hits),
                 "model": None, "model_skor": None, "dusuk_guven": False,
                 "ulke": None, "uretici": None, "rol": None, "adaylar": [],
+                "mensei": None, "sahiplik": None,
                 "vlm": None
             }
             
@@ -57,27 +68,34 @@ class PipelineAdapter:
             if hasattr(t, 'vrag_matches') and getattr(t, 'vrag_matches'):
                 best = t.vrag_matches[0]
                 d["model"] = best.get("model", "")
-                d["model_skor"] = round(best.get("score", 0.0), 3)
+                # "benzerlik" = ham kosinus; "score" oy terimiyle sismis siralama metrigi
+                # (ham 0.88 iken 0.92 gosteriyordu -> arayuzde sahte guven).
+                d["model_skor"] = round(best.get("benzerlik", best.get("score", 0.0)), 3)
                 # Yeni ingest'te metadata yoksa varsayılan koyalım
                 d["ulke"] = best.get("ulke", "Bilinmiyor")
                 d["uretici"] = best.get("uretici", "Bilinmiyor")
                 d["rol"] = best.get("rol", "Bilinmiyor")
+                # Ülke orijini iki bileşen: menşei (köken/üretici ülke, metadata'dan)
+                # + sahiplik (Türkiye envanterinde mi — runtime).
+                d["mensei"] = best.get("ulke", "Bilinmiyor")
+                d["sahiplik"] = (
+                    _sahiplik_cozucu.sahiplik(d["model"]) if _sahiplik_cozucu else "Bilinmiyor"
+                )
                 
                 adaylar = []
                 for m in t.vrag_matches:
                     adaylar.append({
                         "model": m.get("model", ""),
-                        "skor": round(m.get("score", 0.0), 3),
+                        "skor": round(m.get("benzerlik", m.get("score", 0.0)), 3),
                         "ulke": m.get("ulke", "Bilinmiyor"),
                         "rol": m.get("rol", "Bilinmiyor")
                     })
                 d["adaylar"] = adaylar
-                
-                # Basit bir düşük güven hesaplaması
-                if len(t.vrag_matches) >= 2:
-                    diff = t.vrag_matches[0].get("score", 0.0) - t.vrag_matches[1].get("score", 0.0)
-                    if diff < 0.05 and t.vrag_matches[0].get("score", 0.0) < 0.65:
-                        d["dusuk_guven"] = True
+                # Düşük güven artık motorda (engine.py) benchmarklanmış margin
+                # eşiğiyle (VRAG_MARGIN_ESIGI=0.015) hesaplanıyor — buradaki eski
+                # ad-hoc 0.05 eşiği kaldırıldı.
+                d["dusuk_guven"] = bool(best.get("dusuk_guven", False))
+                d["margin"] = round(best["margin"], 3) if "margin" in best else None
                         
             # VLM Verilerini aktar (Pipeline'da vlm_result varsa veya son bilinen VLM'i kullan)
             if hasattr(t, 'vlm_result') and isinstance(t.vlm_result, dict):
@@ -111,10 +129,7 @@ class PipelineAdapter:
                     "arac_sinifi": sinif_map.get(arac, arac),
                     "ulke_orjini": ulke,
                     "gidis_yonu": v.get("gidis_yonu", ""),
-                    "hedef_modeli_tutarlilik": v.get("_hedef_modeli_tutarlilik", ""),
-                    # DENEYSEL (VRAG_GUVEN_ESIGI): nihai model/ülke bilgisi VRAG'tan mı
-                    # yoksa VLM'in kendi bağımsız yorumundan mı geldi.
-                    "guvenilen_kaynak": v.get("_guvenilen_kaynak", "")
+                    "hedef_modeli_tutarlilik": v.get("_hedef_modeli_tutarlilik", "")
                 }
                 d["vlm"] = vlm_payload
                 self.last_vlm_payload = vlm_payload  # Durumu kaydet

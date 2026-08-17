@@ -28,8 +28,10 @@ from src.config import (
     SCENE_CHANGE_THRESHOLD, FAR_TARGET_AREA_RATIO, MIN_OBJECT_PX,
     DISPLAY_MIN_CONF, DISPLAY_MIN_CLASS_VOTE, DISPLAY_ALLOWED_CLASSES, DISPLAY_MIN_HITS, EDGE_MARGIN_PX,
     EDGE_MAX_FRAMES, SUSPENDED_DRAW_GRACE_FRAMES, MAX_OBJECT_AREA_RATIO,
-    VRAG_VOTE_WINDOW, SIRALI_DONGU_MODU, VRAG_GUVEN_ESIGI, PROC_MAX_WIDTH,
+    VRAG_MIN_POOL, VRAG_RECALL_IQA_GAIN, VRAG_MIN_INTERVAL_S, VRAG_MAX_INTERVAL_S,
+    PROC_MAX_WIDTH,
 )
+from src.core.context_router import ContextRouter
 
 _LOG_FILE = Path(__file__).parent / "pipeline.log"
 # BUG-9 Düzeltmesi: logging.basicConfig burada çağrılmaz.
@@ -94,17 +96,29 @@ class TeknoFestPipeline:
         # Prensip 1: Asenkron ve Bloke Etmeyen Mimari için paralel işleme worker havuzu (VLMPool)
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="VLMPool")
 
-        # BUG-FIX (VRAG'ın süresiz donması): Tek bir kilit (_ai_gate) eskiden VRAG
-        # (SigLIP2 embedding) ile VLM (Ollama) çağrılarının İKİSİNİ BİRDEN
-        # sıralıyordu. Ama VRAG artık CPU'da çalışıyor (VRAG_DEVICE=cpu) ve Ollama
-        # ayrı bir process/GPU kullanıyor — aralarında gerçek kaynak çakışması yok.
-        # Ortak kilidin bedeli ağırdı: VLM'in zaman aşımı 120 saniye, ve bu süre
-        # boyunca TÜM VRAG aramaları (ve diğer track'lerin VLM çağrıları) donuyordu
-        # (canlı testte doğrulandı — bir VRAG görevi kilidi hiç alamadan
-        # dakikalarca askıda kaldı, kuyruktaki sonraki hedefler hiç başlayamadı).
-        # Artık VRAG ve VLM ayrı kilitlere sahip.
-        self._vrag_gate = threading.Lock()
-        self._vlm_gate = threading.Lock()
+        # BUG-FIX (VRAG olgun track'lerde hiç sonuç vermiyordu): VRAG task'ları
+        # eskiden ortak self.executor'a (VLM+LLM ile paylaşımlı, 4 worker) submit
+        # ediliyor VE self._ai_gate kilidini VLM ile paylaşıyordu. Yavaş VLM
+        # (Ollama/GPU) çağrıları hem 4 worker'ı hem kilidi uzun süre tutunca VRAG
+        # task'ı ya hiç başlamıyor ya kilitte bekliyordu; task tamamlanmadığı için
+        # `vrag_is_running` bayrağı False'a dönmüyor ve o track BİR DAHA hiç VRAG
+        # almıyordu (tek atış, sonra kalıcı kilit). VRAG artık CPU'da (VRAG_DEVICE=
+        # cpu), VLM ise GPU/Ollama — donanım için yarışmıyorlar. Bu yüzden VRAG'a
+        # kendi tek-worker havuzu verildi: VLM/LLM doygunluğundan bağımsız, kendi
+        # içinde serileşir, _ai_gate'e ihtiyaç duymaz.
+        self._vrag_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="VRAGPool")
+
+        # Bağlam yönlendirici: tespit edilen platforma göre LLM'e doğru video_id
+        # (senaryo bağlamı) seçer — sabit "live_video" (=PLT_KAAN bağlamı) yerine.
+        self.context_router = ContextRouter()
+
+        # VRAM tıkanıklığı düzeltmesi: VRAG (embedding) ve VLM (Ollama) çağrıları
+        # ThreadPoolExecutor sayesinde aynı anda birden fazla track için paralel
+        # tetiklenebiliyordu — birden fazla ağır AI çağrısının aynı anda GPU/Ollama'ya
+        # düşmesi darboğaza yol açıyordu. Bu kilit, ağır AI işlerini (VRAG + VLM)
+        # router gibi sıraya sokup her seferinde yalnızca birinin gerçekten
+        # çalışmasını garanti eder; kuyruğa girme paralel kalır, sadece asıl iş sıralanır.
+        self._ai_gate = threading.Lock()
         
         # --- CUDA WARMUP ---
         # PyTorch modelleri (YOLO ve SigLIP) ilk çalıştıklarında CUDA bellek tahsisi ve derleme
@@ -122,6 +136,53 @@ class TeknoFestPipeline:
             log.info("[PIPELINE] CUDA Isınma tamamlandı!")
         except Exception as e:
             log.warning(f"CUDA Warmup sırasında hata (önemsiz): {e}")
+
+        # --- VLM (Ollama) ASENKRON ISINMA ---
+        # qwen2.5vl:7b'nin diskten VRAM'e ilk yüklenmesi ~40sn sürüyor. Bunu
+        # senkron yaparsak pipeline kurulumu (ve video başlangıcı) 40sn bloklanır;
+        # bu yüzden ARKA PLANDA yaparız — YOLO/SigLIP yüklenip ilk kareler
+        # işlenirken Ollama modeli paralel ısınır. Sonuç: ilk hedef best-moment
+        # kapılarını geçip VLM'e ulaştığında model çoktan sıcak (~5sn) olur;
+        # aksi halde oturumun İLK VLM cevabı ~40sn gecikip hedef ekrandan
+        # geçebiliyordu ("VLM çıktısı gelmiyor" algısının bir sebebi). keep_alive
+        # ile model tüm oturum boyunca (boşta bile) VRAM'de tutulur.
+        def _vlm_isit():
+            try:
+                import requests, base64, cv2, numpy as _np
+                bos = _np.zeros((32, 32, 3), dtype=_np.uint8)
+                _, buf = cv2.imencode('.jpg', bos)
+                b64 = base64.b64encode(buf).decode('utf-8')
+                # Sunucu formati engine.py ile ayni kurala gore secilir: "/v1/" ->
+                # OpenAI-uyumlu (vLLM), degilse Ollama. Ollama govdesi vLLM'e
+                # gonderilirse 400 doner ve isinma sessizce basarisiz olurdu.
+                if "/v1/" in self.vlm.api_url:
+                    chat_url = self.vlm.api_url
+                    govde = {
+                        "model": self.vlm.model_name,
+                        "messages": [{"role": "user", "content": [
+                            {"type": "text", "text": "hazir"},
+                            {"type": "image_url",
+                             "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                        ]}],
+                        "stream": False,
+                        "max_tokens": 1,
+                    }
+                    sunucu = "vLLM"
+                else:
+                    chat_url = self.vlm.api_url.replace("/api/generate", "/api/chat")
+                    govde = {
+                        "model": self.vlm.model_name,
+                        "messages": [{"role": "user", "content": "hazir", "images": [b64]}],
+                        "stream": False,
+                        "keep_alive": "30m",
+                        "options": {"num_predict": 1, "num_ctx": 512},
+                    }
+                    sunucu = "Ollama"
+                requests.post(chat_url, json=govde, timeout=120)
+                log.info(f"[PIPELINE] VLM ({sunucu}) ısınma tamamlandı — model VRAM'de hazır.")
+            except Exception as e:
+                log.warning(f"VLM warmup hatası (önemsiz): {e}")
+        threading.Thread(target=_vlm_isit, daemon=True, name="VLMWarmup").start()
 
         self._video_writer  = None
         self._frame_count   = 0
@@ -228,14 +289,16 @@ class TeknoFestPipeline:
         t_total = time.perf_counter()
         self._frame_count += 1
 
-        # İşleme çözünürlüğü tavanı: pipeline'a girmeden en başta küçült, böylece
-        # detection/tracking/crop/çizim hepsi aynı uzayda kalır (koordinat geri-
-        # eşlemesi gerekmez). Zaten daha küçük gönderilen kareler (ör. backend
-        # adaptöründeki 1280px sınırı) burada zaten eşiğin altında kalıp no-op olur.
+        # HIZLANDIRMA: İşleme çözünürlüğü tavanı. 4K gibi büyük kareler SAHI'de
+        # onlarca patch üretip FPS'i dörtte bire düşürüyordu. Kareyi burada,
+        # HER ŞEYDEN önce küçültüyoruz — böylece detection/tracking/crop/görüntü
+        # tümü aynı (küçültülmüş) uzayda tutarlı çalışır, koordinat eşlemesi
+        # gerekmez. VLM/VRAG crop'ları zaten 384px'e indiği için kimlik kaybı yok.
         if PROC_MAX_WIDTH and frame_bgr.shape[1] > PROC_MAX_WIDTH:
             olcek = PROC_MAX_WIDTH / frame_bgr.shape[1]
             frame_bgr = cv2.resize(
-                frame_bgr, (PROC_MAX_WIDTH, int(round(frame_bgr.shape[0] * olcek))),
+                frame_bgr,
+                (PROC_MAX_WIDTH, max(1, int(round(frame_bgr.shape[0] * olcek)))),
                 interpolation=cv2.INTER_AREA,
             )
 
@@ -311,34 +374,61 @@ class TeknoFestPipeline:
             # VLM tetiklemesini sonsuza dek engelleyebiliyordu. Genişlik >= 15 ve yükseklik >= 10 yeterli kılındı.
             size_ok = (bw >= 15) and (bh >= 10) and max(bw, bh) >= VLM_MIN_BBOX_PX
             
-            # --- [YENİ] Bağımsız VRAG Araması ---
-            # VLM'i beklemeden doğrudan VRAG'ı çalıştırıp HUD'a yansıtabilmek için.
-            #
-            # DENEYSEL (SIRALI_DONGU_MODU): Açıksa VRAG artık "bağımsız" değil —
-            # yalnızca track'in dongu_asamasi "vrag" iken tetiklenir (VLM/LLM
-            # turunu bekler). Bkz. config.py'deki SIRALI_DONGU_MODU notu.
-            dongu_vrag_sirasi = (
-                not SIRALI_DONGU_MODU
-                or self.vlm.vrag_engine is None
-                or getattr(track, "dongu_asamasi", "vrag") == "vrag"
-            )
-            if size_ok and len(track._crop_buffer) > 0 and dongu_vrag_sirasi:
+            # --- [YENİ] Bağımsız VRAG Araması — "en iyi an" (best-moment) tetikleme ---
+            # VLM'i beklemeden VRAG'ı çalıştırıp HUD'a yansıtır. Ama her karede/
+            # her sabit periyotta DEĞİL — yalnızca elverişli bir an yakalandığında:
+            #   1) İlk sorgu: _crop_buffer'da >= VRAG_MIN_POOL kaliteli kare birikince
+            #      (çok erken/bulanık kareyle sorgulama yok → ilk denemede saçmalamaz).
+            #   2) Yeniden sorgu: en iyi kare IQA'sı VRAG_RECALL_IQA_GAIN kat artınca
+            #      (uçak yan dönüp silüet açılınca gibi) — periyodik değil.
+            #   3) Titreme koruması: iki sorgu arası >= VRAG_MIN_INTERVAL_S.
+            #   4) Sağlamlık: kalite platoda kalsa bile en geç VRAG_MAX_INTERVAL_S'de tazele.
+            # Kırpılan kare her zaman IQA-filtreli en net kare (get_best_crops).
+            if size_ok and len(track._crop_buffer) >= VRAG_MIN_POOL:
                 if not hasattr(track, "vrag_last_time"):
                     track.vrag_last_time = 0.0
                 if not hasattr(track, "vrag_is_running"):
                     track.vrag_is_running = False
+                if not hasattr(track, "vrag_done"):
+                    track.vrag_done = False
+                if not hasattr(track, "last_vrag_iqa"):
+                    track.last_vrag_iqa = 0.0
 
-                if not track.vrag_is_running and (now - track.vrag_last_time > 1.0):
-                    # Eski karelerde takılı kalmamak için doğrudan o anki CANLI kareyi kesip kullanıyoruz
-                    x1, y1, x2, y2 = map(int, track.bbox)
-                    pad_x, pad_y = int(bw * 0.15), int(bh * 0.15)
-                    cx1, cy1 = max(0, x1 - pad_x), max(0, y1 - pad_y)
-                    cx2, cy2 = min(frame_bgr.shape[1], x2 + pad_x), min(frame_bgr.shape[0], y2 + pad_y)
-                    live_crop = frame_bgr[cy1:cy2, cx1:cx2]
+                # O anki en iyi karenin IQA (Laplacian netlik) skoru.
+                current_best_iqa = max((c[1] for c in track._crop_buffer), default=0.0)
 
-                    if live_crop.size > 0 and self.vlm.vrag_engine:
+                ilk_sorgu     = not track.vrag_done
+                daha_iyi_kare = track.vrag_done and (
+                    current_best_iqa >= track.last_vrag_iqa * VRAG_RECALL_IQA_GAIN
+                )
+                bayat         = track.vrag_done and (
+                    now - track.vrag_last_time > VRAG_MAX_INTERVAL_S
+                )
+                zaman_ok      = (now - track.vrag_last_time) > VRAG_MIN_INTERVAL_S
+                tetikle       = (ilk_sorgu or daha_iyi_kare or bayat) and zaman_ok
+
+                # Kendini-iyileştiren kilit: bir task herhangi bir sebeple takılıp
+                # `finally`'e ulaşamazsa is_running sonsuza dek True kalıp track'i
+                # kalıcı bloklamasın — 10 sn'den uzun "çalışıyor" bayat sayılır.
+                stuck = track.vrag_is_running and (
+                    now - getattr(track, "vrag_started_at", now) > 10.0
+                )
+                if (not track.vrag_is_running or stuck) and tetikle:
+                    best_crops = track.get_best_crops(max_crops=1)
+                    if best_crops:
+                        vrag_crop = best_crops[0]
+                    else:
+                        x1, y1, x2, y2 = map(int, track.bbox)
+                        pad_x, pad_y = int(bw * 0.15), int(bh * 0.15)
+                        cx1, cy1 = max(0, x1 - pad_x), max(0, y1 - pad_y)
+                        cx2, cy2 = min(frame_bgr.shape[1], x2 + pad_x), min(frame_bgr.shape[0], y2 + pad_y)
+                        vrag_crop = frame_bgr[cy1:cy2, cx1:cx2]
+
+                    if vrag_crop.size > 0 and self.vlm.vrag_engine:
                         track.vrag_is_running = True
-                        self.executor.submit(self._async_vrag_task, track, live_crop)
+                        track.vrag_started_at = now
+                        track.last_vrag_iqa = current_best_iqa  # bu kalitede sorgu yaptık
+                        self._vrag_executor.submit(self._async_vrag_task, track, vrag_crop)
 
             # Prensip 3: Kontrastı ve köşe netliği en yüksek olan EN İYİ kareyi seç.
             # BUG-FIX: Eskiden crop_buffer_ready sadece "en az 1 kare var mı?" diye
@@ -389,24 +479,7 @@ class TeknoFestPipeline:
                     f"edge_ok:{edge_ok} (edge_frames={track.edge_touch_frames})"
                 )
 
-            # DENEYSEL (SIRALI_DONGU_MODU): Aktifse VLM, "hiç analiz edilmemiş
-            # ya da çok daha net kare geldi" mantığı yerine SADECE track'in
-            # dongu_asamasi "vlm" olduğunda (yani VRAG az önce bitirip sırayı
-            # devrettiğinde) tetiklenir — her turda vlm_done'a bakmaksızın
-            # yeniden analiz eder.
-            sirali_mod_aktif = SIRALI_DONGU_MODU and self.vlm.vrag_engine is not None
-            if sirali_mod_aktif:
-                vlm_calissin_mi = (
-                    getattr(track, "dongu_asamasi", "vrag") == "vlm"
-                    and not track.is_vlm_querying
-                )
-            else:
-                vlm_calissin_mi = (
-                    (not track.is_vlm_querying or is_superior_recall)
-                    and (not track.vlm_done or is_superior_recall)
-                )
-
-            if vlm_ready and vlm_calissin_mi:
+            if vlm_ready and (not track.is_vlm_querying or is_superior_recall) and (not track.vlm_done or is_superior_recall):
                 if is_superior_recall:
                     log.info(
                         f"[VLM-RECALL / SÜPER KARE] Track {track.track_id} → "
@@ -448,7 +521,13 @@ class TeknoFestPipeline:
                 if not getattr(track, "is_llm_querying", False) and last_llm_vlm_hash != current_vlm_hash:
                     track.is_llm_querying = True
                     track.last_llm_vlm_hash = current_vlm_hash
-                    self.executor.submit(self._async_llm_task, track, track.vlm_result)
+                    # Gözlem zamanı: DUVAR SAATİ (time.time()) değil, VİDEO zamanı.
+                    # Video başlangıcından bu yana geçen saniye = frame / fps. Bu
+                    # offset, senaryonun video_start_time_utc'sine eklenip izin/uçuş
+                    # planı geçerlilik penceresiyle karşılaştırılır — yanlış zaman
+                    # geçerli izni "süresi dolmuş" gösteriyordu.
+                    video_offset = self._frame_count / self._source_fps
+                    self.executor.submit(self._async_llm_task, track, track.vlm_result, video_offset)
 
             clamped_box = np.array([x1, y1, x2, y2])
             raw_clamped = np.array([
@@ -543,6 +622,7 @@ class TeknoFestPipeline:
         
         log.info("VLM arka plan görevlerinin tamamlanması bekleniyor (Lütfen kapatmayın)...")
         self.executor.shutdown(wait=True)
+        self._vrag_executor.shutdown(wait=True)
 
         # BUG-FIX: tracker._crop_pool (CropPool) hiç kapatılmıyordu.
         self.tracker.close()
@@ -552,39 +632,23 @@ class TeknoFestPipeline:
     def _async_vrag_task(self, track, live_crop):
         try:
             import time
-            # VRAG kendi kilidini kullanır — VLM'in (Ollama, 120sn'ye kadar sürebilir)
-            # kilidini beklemek zorunda değil.
-            with self._vrag_gate:
-                matches = self.vlm.vrag_engine.search_similar_vehicle(live_crop)
+            # VRAG kendi tek-worker havuzunda (self._vrag_executor) çalışır ve
+            # engine içindeki _search_lock ile serileşir — _ai_gate'e (yavaş VLM/
+            # Ollama kilidi) bağımlı değil. SigLIP2 GPU'da çalıştığı için CPU-thread
+            # deadlock'u da yok.
+            matches = self.vlm.vrag_engine.search_similar_vehicle(live_crop)
             if matches:
-                # Zamansal oylama: VRAG track başına ~saniyede bir çalışıyor, tek
-                # karenin sonucu titreyebiliyor (aynı hedef için art arda farklı
-                # modeller — örn. F-16→WZ-7→F-4E→WZ-7). Ham en-son sonucu doğrudan
-                # göstermek yerine, son VRAG_VOTE_WINDOW aramanın en sık tekrar eden
-                # top-1 modelini gösteriyoruz (VLM tarafındaki TrackVoteAggregator
-                # ile aynı mantık) — titreme azalır, gerçekten baskın olan cevaba
-                # yakınsama ihtimali artar.
-                if not hasattr(track, "vrag_history"):
-                    track.vrag_history = deque(maxlen=VRAG_VOTE_WINDOW)
-                track.vrag_history.append(matches)
-
-                from collections import Counter
-                top1_adlari = [m[0]["model"] for m in track.vrag_history if m]
-                secilen_model, _ = Counter(top1_adlari).most_common(1)[0]
-                # Oylanan modele ait EN SON (en güncel) eşleşme bilgisini kullan
-                secilen_match = next(
-                    (m[0] for m in reversed(track.vrag_history) if m and m[0]["model"] == secilen_model),
-                    matches[0],
-                )
-                track.vrag_matches = [secilen_match] + matches[1:]
+                track.vrag_matches = matches
         except Exception as e:
             log.warning(f"VRAG error: {e}")
         finally:
             track.vrag_is_running = False
             track.vrag_last_time = time.perf_counter()
-            # DENEYSEL (SIRALI_DONGU_MODU): VRAG turunu bitirdi, sırayı VLM'e devret.
-            if SIRALI_DONGU_MODU:
-                track.dongu_asamasi = "vlm"
+            # En az bir sorgu tamamlandı: best-moment mantığı artık "yeniden sorgu"
+            # (IQA artışı / bayat tazeleme) moduna geçer. Eşleşme bulunmasa bile
+            # işaretlenir — kötü bir kareye takılıp kalmasın, daha iyi kare gelince
+            # veya en geç VRAG_MAX_INTERVAL_S'de tekrar denesin.
+            track.vrag_done = True
 
     def _async_vlm_task(self, track, crops, speed, zigzag, threat_score, yolo_class="bilinmeyen", yolo_conf=0.5):
         vrag_matches = getattr(track, "vrag_matches", [])
@@ -599,9 +663,9 @@ class TeknoFestPipeline:
             if not enhanced_crops:
                 enhanced_crops = crops
 
-            # VLM kendi kilidini kullanır — aynı anda yalnızca bir Ollama çağrısı çalışsın,
-            # ama artık VRAG'ı bloklamaz.
-            with self._vlm_gate:
+            # Router kilidi: aynı anda yalnızca bir ağır AI çağrısı (VRAG ya da VLM/Ollama)
+            # gerçekten çalışsın — GPU/Ollama'ya paralel çoklu istek düşmesini engeller.
+            with self._ai_gate:
                 json_result = self.vlm.analyze_target(
                     track_id  = track.track_id,
                     crops     = enhanced_crops,
@@ -619,56 +683,35 @@ class TeknoFestPipeline:
 
             if json_result is not None:
                 track.vlm_done = True   # BUG-2: Başarılı sonuçtan sonra işaretle
-                # DENEYSEL (SIRALI_DONGU_MODU): VLM turu bitti, sırayı LLM'e devret.
-                # "vlm" olarak kalsaydı, LLM daha işini bitirmeden VLM tetikleme
-                # koşulu (dongu_asamasi=="vlm" and not is_vlm_querying) yeniden
-                # doğru olur ve VLM gereksiz yere tekrar tetiklenirdi.
-                if SIRALI_DONGU_MODU:
-                    track.dongu_asamasi = "llm"
-
-                # DENEYSEL (VRAG_GUVEN_ESIGI): VRAG'ın en iyi eşleşmesi eşik ve
-                # üzerindeyse, VLM'in kendi bağımsız yorumu yerine VRAG'ın model/
-                # ülke bilgisi nihai sonuç olarak kullanılır — kullanıcının
-                # istediği VLM-vs-VRAG karşılaştırmasını görünür kılmak için
-                # "_guvenilen_kaynak" alanı da ekleniyor.
-                # UYARI (kodda not edildi, config.py'de detaylı): Bu oturumda
-                # VRAG'ın >= %90 skorla dahi yanlış olabildiği kanıtlanmıştı —
-                # bu eşik doğruluğu garanti etmez, sadece kıyaslama sağlar.
-                if vrag_matches and vrag_matches[0].get("score", 0.0) >= VRAG_GUVEN_ESIGI:
-                    en_iyi_vrag = vrag_matches[0]
-                    json_result["hedef_modeli"] = en_iyi_vrag.get("model", json_result.get("hedef_modeli"))
-                    if en_iyi_vrag.get("ulke", "Bilinmiyor") != "Bilinmiyor":
-                        json_result["ulke_orjini"] = en_iyi_vrag["ulke"]
-                    json_result["_guvenilen_kaynak"] = "VRAG"
-                else:
-                    json_result["_guvenilen_kaynak"] = "VLM"
 
                 # [YENİ] VLM kararı kaydedilir (kuş filtresi için)
                 track.vlm_class = json_result.get("arac_sinifi")
-
+                
                 # [YENİ] UI'a tam json göndermek için vlm_result kaydet
                 track.vlm_result = json_result
 
-                # BUG-FIX (KRİTİK — LLM hiç tetiklenmeyebiliyordu): LLM tetiklemesi
-                # eskiden SADECE process_frame'in "for track in valid_tracks" döngüsünde
-                # (yani track hâlâ takip listesindeyken) kontrol ediliyordu. VLM ~13-20sn
-                # sürebiliyor; bu süre boyunca hedef KALMAN_SUSPENDED_AGE'den (75 kare,
-                # ~3sn) uzun süre tespit edilemezse tracker track'i TAMAMEN SİLİYOR
-                # (bkz. tracker.py: dead_ids). Track silinince valid_tracks'te bir daha
-                # hiç görünmüyor, ana döngüdeki LLM kontrolü asla bu track'i göremiyor
-                # ve LLM sonsuza dek tetiklenmiyordu — sessizce. Artık VLM bittiği anda,
-                # aynı thread içinde, track'in ana döngüde hâlâ var olup olmadığına
-                # bakmaksızın LLM'i DOĞRUDAN tetikliyoruz. process_frame'deki eski
-                # kontrol de duruyor (hash+is_llm_querying ile çift tetiklemeyi zaten
-                # engelliyor) — track hâlâ aktifse o da çalışabilir, zararı yok.
-                current_vlm_hash = str(json_result)
-                if (
-                    not getattr(track, "is_llm_querying", False)
-                    and getattr(track, "last_llm_vlm_hash", None) != current_vlm_hash
-                ):
-                    track.is_llm_querying = True
-                    track.last_llm_vlm_hash = current_vlm_hash
-                    self.executor.submit(self._async_llm_task, track, json_result)
+                # BUG-FIX (LLM hic tetiklenmiyordu): LLM kapisi process_frame'in
+                # track dongusundeydi, yani yalnizca O AN YASAYAN track'ler icin
+                # degerlendiriliyordu. VLM cagrisi ~50 sn suruyor (Ollama VLM
+                # 8 GB VRAM'de %87 CPU'ya tasiniyor) ve _ai_gate ile seriellesiyor;
+                # sonuc dondugunde track coktan olmus oluyordu (olcum: Track 0
+                # 02:02:50'de gonderildi, sonucu 02:03:41'de dondu, o sirada aktif
+                # track 53+). Olu track'e yazilan vlm_result'i bir daha kimse
+                # okumadigi icin LLM ASLA cagrilmiyordu. Ayrica video bitince kare
+                # akisi durdugundan kapi zaten kapaniyordu.
+                # Cozum: sonucu bekleyecek bir sonraki kareye guvenme, LLM'i
+                # burada -- sonuc elimize gecer gecmez -- tetikle. Boylece LLM
+                # track omrunden ve video uzunlugundan bagimsiz calisir.
+                # process_frame'deki eski kapi yerinde biraktildi; last_llm_vlm_hash
+                # ayni sonuc icin ikinci bir cagriyi zaten engelliyor.
+                if not getattr(track, "is_llm_querying", False):
+                    _hash = str(json_result)
+                    if getattr(track, "last_llm_vlm_hash", None) != _hash:
+                        track.is_llm_querying = True
+                        track.last_llm_vlm_hash = _hash
+                        _offset = (self._frame_count / self._source_fps) if self._source_fps else 0.0
+                        log.info(f"[LLM] Track {track.track_id}: VLM sonucu geldi → LLM tetikleniyor.")
+                        self.executor.submit(self._async_llm_task, track, json_result, _offset)
 
                 # Prompt'tan guven_skoru kaldırılıp tracker/YOLO sistemine devredildiği için
                 # JSON'da olmadığında 0% basmamak adına doğrudan sistem skoru kullanılır.
@@ -722,21 +765,14 @@ class TeknoFestPipeline:
                 )
             else:
                 log.warning(f"[VLM] Track {track.track_id}: Geçerli analiz döndürülemedi.")
-                # DENEYSEL (SIRALI_DONGU_MODU): Geçerli sonuç yok, LLM'e devredecek
-                # bir şey olmadığı için turu burada VRAG'a geri sarıyoruz —
-                # yoksa dongu_asamasi "vlm"de takılı kalıp cycle durur.
-                if SIRALI_DONGU_MODU:
-                    track.dongu_asamasi = "vrag"
 
         except Exception as e:
             log.error(f"[VLM] Asenkron Hata (Track {track.track_id}): {e}")
-            if SIRALI_DONGU_MODU:
-                track.dongu_asamasi = "vrag"
         finally:
             if should_reset_querying:
                 track.is_vlm_querying = False
 
-    def _async_llm_task(self, track, vlm_result):
+    def _async_llm_task(self, track, vlm_result, video_offset: float = 0.0):
         import requests
         try:
             # 1. Adapt Raw VLM
@@ -746,6 +782,20 @@ class TeknoFestPipeline:
                 "_celiski_var", "_vote_count", "video_events"
             }
             cleaned_vlm_result = {k: v for k, v in vlm_result.items() if k in allowed_vlm_keys or str(k).startswith("_")}
+
+            # BUG-FIX (LLM çıktısı hiç gelmiyordu / adapter HTTP 500):
+            # LLM adapter'ı (upstream_vlm_adapter.map_vlm_vehicle_class) arac_sinifi
+            # olarak YALNIZCA "sabit_kanat" / "doner_kanat" kabul ediyor. VLM ise
+            # serbest metin üretiyor ("hava_araci", "askeri_ucak", "iha", "jet"...)
+            # — eşlenemeyen sınıf KeyError → 500 → track.llm_result hiç oluşmuyor,
+            # dolayısıyla LLM paneli boş kalıyordu. VLM'in ham değerine (UI'da
+            # gösterilen) DOKUNMADAN, yalnız LLM'e giden kopyayı ikili kanat tipine
+            # indirger. Adapter "sabit_kanat"/"doner_kanat" için her zaman geçerli
+            # bir anahtar üretir (en kötü BILINMEYEN_HAVA_ARACI), asla 500 vermez.
+            imza = " ".join(str(cleaned_vlm_result.get(k, "")).lower()
+                            for k in ("arac_sinifi", "tahmini_hedef_tipi", "gorsel_analiz"))
+            doner = any(kelime in imza for kelime in ("doner", "döner", "heli", "rotor"))
+            cleaned_vlm_result["arac_sinifi"] = "doner_kanat" if doner else "sabit_kanat"
 
             # BUG-FIX: VLM kendi "ulke_orjini"nı çoğunlukla "Bilinmiyor" veriyor (kırpılmış
             # görüntüden ülke tahmini zor). VRAG'ın kendi referans metadata'sında (artık
@@ -761,13 +811,30 @@ class TeknoFestPipeline:
             ):
                 cleaned_vlm_result["ulke_orjini"] = vrag_matches[0]["ulke"]
 
-            current_time_offset = float(time.time() % 10000)
+            # --- Bağlam yönlendirme (video_id) ---
+            # Tespit edilen platforma göre doğru senaryo bağlamını seç. Otorite
+            # kimlik VRAG'ın top eşleşmesidir (retrieval, sistemin birincil kimlik
+            # kaynağı); yoksa VLM'in hedef_modeli'ne düşülür. Model → platform_id →
+            # video_id (route tablosu); eşleşme yoksa fallback. Böylece izin/uçuş
+            # planı/NOTAM sorguları artık doğru platformun bağlamında yapılır
+            # (eski sabit "live_video" hep PLT_KAAN bağlamıydı → yanlış sonuç).
+            vrag_matches_for_route = getattr(track, "vrag_matches", [])
+            otorite_model = (
+                vrag_matches_for_route[0].get("model")
+                if vrag_matches_for_route else None
+            ) or cleaned_vlm_result.get("hedef_modeli")
+            video_id = self.context_router.resolve_video_id(otorite_model)
+
+            # Gözlem zamanı = video zamanı (frame/fps), duvar saati DEĞİL.
+            last_seen = max(0.0, float(video_offset))
+            track_suresi = track.hits / self._source_fps if self._source_fps else 0.0
+            first_seen = max(0.0, last_seen - track_suresi)
             adapter_payload = {
                 "raw_vlm": cleaned_vlm_result,
-                "video_id": "live_video",
+                "video_id": video_id,
                 "track_id": str(track.track_id),
-                "first_seen_offset_seconds": current_time_offset,
-                "last_seen_offset_seconds": current_time_offset + 1.0,
+                "first_seen_offset_seconds": first_seen,
+                "last_seen_offset_seconds": last_seen,
                 "visual_confidence": float(track.confidence)
             }
             res = requests.post("http://127.0.0.1:8001/api/v1/adapters/raw-vlm", json=adapter_payload, timeout=5.0)
@@ -778,7 +845,11 @@ class TeknoFestPipeline:
                     analyze_res = requests.post(
                         "http://127.0.0.1:8001/api/v1/events/analyze?response_format=teknofest_spec",
                         json=analyze_req,
-                        timeout=30.0
+                        # 30.0 -> 120.0: llama3.2:1b bilerek CPU'da (num_gpu:0) calisiyor,
+                        # ancak Ubuntu'da VLM de VRAM'e sigmayip CPU'ya tasindigi icin
+                        # (olcum: %87 CPU / %13 GPU) LPU/CPU cekismesi karari 30 sn'nin
+                        # otesine tasiyip Read timeout veriyordu -> LLM paneli hep bostu.
+                        timeout=120.0
                     )
                     if analyze_res.status_code == 200:
                         track.llm_result = analyze_res.json()
@@ -791,6 +862,3 @@ class TeknoFestPipeline:
             log.error(f"[LLM] Asenkron Hata: {e}")
         finally:
             track.is_llm_querying = False
-            # DENEYSEL (SIRALI_DONGU_MODU): Tur tamamlandı, VRAG'a yeni crop ile geri dön.
-            if SIRALI_DONGU_MODU:
-                track.dongu_asamasi = "vrag"

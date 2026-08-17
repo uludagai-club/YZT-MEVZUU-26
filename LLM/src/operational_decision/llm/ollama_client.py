@@ -50,6 +50,12 @@ class OllamaLLMClient(BaseLLMClient):
                 "temperature": 0.1,
                 "top_p": 0.8,
                 "seed": 42,
+                # num_gpu=0: karar-destek LLM'ini (llama3.2:1b) tamamen CPU'da
+                # çalıştır. GPU'yu yalnızca YOLO + VLM (Ollama qwen2.5vl) kullansın —
+                # 3'lü VRAM çekişmesini 2'liye indirir, FPS düşüşünü azaltır.
+                # 1B model CPU'da yeterince hızlı ve karar-destek gerçek zamanlı
+                # değil (olay-bazlı, gecikmeye toleranslı).
+                "num_gpu": 0,
             },
         }
         try:

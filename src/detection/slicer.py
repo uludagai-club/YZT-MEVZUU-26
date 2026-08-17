@@ -485,7 +485,7 @@ class SmartSlicer:
 
         p1_results = self.model(
             small, conf=PASS1_CONF, device=DEVICE, verbose=False, imgsz=PASS1_SIZE,
-            quantize=YOLO_QUANTIZE,
+            quantize=YOLO_QUANTIZE
         )[0]
 
         rois = []
@@ -610,7 +610,7 @@ class SmartSlicer:
     @staticmethod
     def _variance_ok(patch: np.ndarray) -> bool:
         gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
-        lap  = cv2.Laplacian(gray, cv2.CV_32F)  # CV_64F yerine CV_32F: aynı sonuç, daha az bellek/işlem
+        lap  = cv2.Laplacian(gray, cv2.CV_64F)
         return float(lap.var()) >= VARIANCE_THRESHOLD
 
     # ──────────────────────────────────────────────────────────
@@ -629,7 +629,7 @@ class SmartSlicer:
             device=DEVICE,
             verbose=False,
             imgsz=max(SLICE_H, SLICE_W),
-            quantize=YOLO_QUANTIZE,
+            quantize=YOLO_QUANTIZE
         )
 
         dets: list[RawDetection] = []
